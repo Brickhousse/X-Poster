@@ -39,9 +39,11 @@ export default function GeneratePage() {
     const prefilledPrompt = params.get("prompt");
     const prefilledText = params.get("text");
     const prefilledImageUrl = params.get("imageUrl");
+    const prefilledImagePrompt = params.get("imagePrompt");
     if (prefilledPrompt) { setValue("prompt", prefilledPrompt); setLastPrompt(prefilledPrompt); }
     if (prefilledText) setGeneratedText(prefilledText);
     if (prefilledImageUrl) setGeneratedImageUrl(prefilledImageUrl);
+    if (prefilledImagePrompt) setLastImagePrompt(prefilledImagePrompt);
 
     // Check session status on mount for missing key notice
     getSessionStatus().then((status) => {
@@ -108,6 +110,7 @@ export default function GeneratePage() {
         addHistoryItem({
           id,
           prompt: values.prompt,
+          imagePrompt,
           editedText: resolvedText,
           imageUrl: resolvedImageUrl,
           status: "draft",

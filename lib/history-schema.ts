@@ -3,6 +3,7 @@ export type HistoryItemStatus = "draft" | "posted" | "scheduled";
 export interface HistoryItem {
   id: string;
   prompt: string;
+  imagePrompt?: string;
   editedText: string;
   imageUrl: string | null;
   status: HistoryItemStatus;

@@ -67,6 +67,7 @@ export default function HistoryPage() {
     const params = new URLSearchParams({ prompt: item.prompt });
     if (item.editedText) params.set("text", item.editedText);
     if (item.imageUrl) params.set("imageUrl", item.imageUrl);
+    if (item.imagePrompt) params.set("imagePrompt", item.imagePrompt);
     router.push(`/generate?${params.toString()}`);
   };
 
