@@ -7,7 +7,7 @@ import { z } from "zod";
 import { sessionOptions, type SessionData } from "@/lib/session";
 
 const schema = z.object({
-  text: z.string().min(1).max(280),
+  text: z.string().min(1, "Post cannot be empty.").max(280, "Post exceeds 280 characters — please shorten it before posting."),
 });
 
 type PostResult = { id: string; tweetUrl: string } | { error: string };
@@ -15,7 +15,7 @@ type PostResult = { id: string; tweetUrl: string } | { error: string };
 export async function postTweet(text: string): Promise<PostResult> {
   const parsed = schema.safeParse({ text });
   if (!parsed.success) {
-    return { error: "Invalid tweet text." };
+    return { error: parsed.error.issues[0].message };
   }
 
   const session = await getIronSession<SessionData>(await cookies(), sessionOptions);
@@ -31,8 +31,8 @@ export async function postTweet(text: string): Promise<PostResult> {
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
     if (message.includes("401") || message.toLowerCase().includes("unauthorized")) {
-      return { error: "401: Access token expired or revoked. Please reconnect your X account in Settings." };
+      return { error: "Access token expired or revoked. Please reconnect your X account in Settings." };
     }
-    return { error: "Failed to post tweet. Please try again." };
+    return { error: "Failed to post. Please try again." };
   }
 }
