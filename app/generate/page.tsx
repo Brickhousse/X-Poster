@@ -210,9 +210,9 @@ export default function GeneratePage() {
     "text-slate-500";
 
   return (
-    <div className="flex gap-8 items-start">
+    <div className="grid grid-cols-2 gap-8 items-start max-w-5xl">
       {/* LEFT COLUMN */}
-      <div className="min-w-0 flex-1 max-w-xl">
+      <div className="min-w-0">
       <h1 className="mb-6 text-xl font-semibold text-slate-100">Generate</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -379,14 +379,14 @@ export default function GeneratePage() {
         <div className="mt-4 space-y-2">
           <h2 className="text-sm font-medium text-slate-300">Generated image</h2>
           {(isGenerating || isRegeneratingImage) && !generatedImageUrl && !imageError ? (
-            <div className="h-64 w-full max-w-sm animate-pulse rounded-md bg-slate-800" />
+            <div className="h-64 w-full animate-pulse rounded-md bg-slate-800" />
           ) : imageError ? (
             <p className="text-sm text-red-400">{imageError}</p>
           ) : (
             <button
               type="button"
               onClick={() => setShowImageModal(true)}
-              className="group relative block w-full max-w-sm overflow-hidden rounded-md border border-slate-700 focus:outline-none"
+              className="group relative block w-full overflow-hidden rounded-md border border-slate-700 focus:outline-none"
               title="Click to expand"
             >
               <img
@@ -412,7 +412,7 @@ export default function GeneratePage() {
       )}
       </div>
       {/* RIGHT COLUMN */}
-      <div className="w-96 flex-shrink-0 sticky top-6">
+      <div className="sticky top-6">
         <p className="mb-3 text-xs font-medium uppercase tracking-widest text-slate-500">Preview</p>
 
         <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
