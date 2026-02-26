@@ -20,6 +20,7 @@ export default function GeneratePage() {
   const [missingKey, setMissingKey] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const [postSuccess, setPostSuccess] = useState<{ tweetUrl: string } | null>(null);
   const [postError, setPostError] = useState<string | null>(null);
@@ -357,11 +358,21 @@ export default function GeneratePage() {
           ) : imageError ? (
             <p className="text-sm text-red-400">{imageError}</p>
           ) : (
-            <img
-              src={generatedImageUrl!}
-              alt="Generated"
-              className="rounded-md border border-slate-700 w-full max-w-sm object-cover"
-            />
+            <button
+              type="button"
+              onClick={() => setShowImageModal(true)}
+              className="group relative block w-full max-w-sm overflow-hidden rounded-md border border-slate-700 focus:outline-none"
+              title="Click to expand"
+            >
+              <img
+                src={generatedImageUrl!}
+                alt="Generated"
+                className="w-full object-cover"
+              />
+              <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-xs font-medium text-white opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">
+                Click to expand
+              </span>
+            </button>
           )}
           <button
             type="button"
@@ -372,6 +383,29 @@ export default function GeneratePage() {
             {isRegeneratingImage && <Loader2 className="h-3 w-3 animate-spin" />}
             {isRegeneratingImage ? "Regenerating…" : "Regenerate image"}
           </button>
+        </div>
+      )}
+      {/* Full-size image modal */}
+      {showImageModal && generatedImageUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setShowImageModal(false)}
+        >
+          <div className="relative max-h-full max-w-4xl" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setShowImageModal(false)}
+              className="absolute -right-3 -top-3 flex h-7 w-7 items-center justify-center rounded-full bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white focus:outline-none"
+              aria-label="Close preview"
+            >
+              ✕
+            </button>
+            <img
+              src={generatedImageUrl}
+              alt="Generated full size"
+              className="max-h-[90vh] w-auto rounded-md object-contain"
+            />
+          </div>
         </div>
       )}
     </div>
