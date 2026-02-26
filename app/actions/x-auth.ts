@@ -6,20 +6,21 @@ type AuthUrlResult =
   | { url: string; codeVerifier: string; state: string }
   | { error: string };
 
-export async function generateXAuthUrl(
-  clientId: string,
-  clientSecret: string,
-  callbackUrl: string
-): Promise<AuthUrlResult> {
+export async function generateXAuthUrl(callbackUrl: string): Promise<AuthUrlResult> {
+  const clientId = process.env.NEXT_PUBLIC_X_CLIENT_ID;
+  const clientSecret = process.env.X_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    return { error: "X OAuth credentials are not configured on the server." };
+  }
+
   try {
     const client = new TwitterApi({ clientId, clientSecret });
-    const { url, codeVerifier, state } = client.generateOAuth2AuthLink(
-      callbackUrl,
-      { scope: ["tweet.read", "tweet.write", "users.read"] }
-    );
+    const { url, codeVerifier, state } = client.generateOAuth2AuthLink(callbackUrl, {
+      scope: ["tweet.read", "tweet.write", "users.read"],
+    });
     return { url, codeVerifier, state };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return { error: `Failed to generate auth URL: ${message}` };
+  } catch {
+    return { error: "Failed to generate auth URL." };
   }
 }

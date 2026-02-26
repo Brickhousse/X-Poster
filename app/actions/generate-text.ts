@@ -1,5 +1,10 @@
 "use server";
 
+import { cookies } from "next/headers";
+import { getIronSession } from "iron-session";
+import { z } from "zod";
+import { sessionOptions, type SessionData } from "@/lib/session";
+
 const GROK_API_URL = "https://api.x.ai/v1/responses";
 
 const SYSTEM_PROMPT = `You are GrokXPoster — an elite X (Twitter) content strategist and visual designer powered by Grok.
@@ -40,26 +45,37 @@ ADDITIONAL GUARDRAILS
 - Never add disclaimers or "as an AI" language.
 - Always optimize for maximum engagement while staying authentic.`;
 
+const schema = z.object({
+  prompt: z.string().min(1).max(500),
+});
+
 export type TextResult =
   | { text: string; imagePrompt: string; whyItWorks: string }
   | { error: string };
 
-export async function generateText(
-  prompt: string,
-  apiKey: string
-): Promise<TextResult> {
+export async function generateText(prompt: string): Promise<TextResult> {
+  const parsed = schema.safeParse({ prompt });
+  if (!parsed.success) {
+    return { error: "Invalid prompt." };
+  }
+
+  const session = await getIronSession<SessionData>(await cookies(), sessionOptions);
+  if (!session.grokApiKey) {
+    return { error: "Grok API key not set. Go to Settings to add it." };
+  }
+
   try {
     const res = await fetch(GROK_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${session.grokApiKey}`,
       },
       body: JSON.stringify({
         model: "grok-4-1-fast-reasoning",
         input: [
           { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: prompt },
+          { role: "user", content: parsed.data.prompt },
         ],
         tools: [{ type: "web_search" }],
         max_tokens: 800,
@@ -68,8 +84,9 @@ export async function generateText(
     });
 
     if (!res.ok) {
-      const body = await res.text();
-      return { error: `Grok API error ${res.status}: ${body}` };
+      if (res.status === 401) return { error: "Grok API key is invalid or expired." };
+      if (res.status === 429) return { error: "Grok API rate limit reached. Please try again later." };
+      return { error: `Grok API error ${res.status}. Please try again.` };
     }
 
     const data = (await res.json()) as {
@@ -85,12 +102,11 @@ export async function generateText(
     const whyItWorksMatch = raw.match(/\*\*Why it works\*\*\s*([\s\S]*?)$/i);
 
     const text = xPostMatch?.[1]?.trim() ?? raw;
-    const imagePrompt = imagePromptMatch?.[1]?.trim() ?? prompt;
+    const imagePrompt = imagePromptMatch?.[1]?.trim() ?? parsed.data.prompt;
     const whyItWorks = whyItWorksMatch?.[1]?.trim() ?? "";
 
     return { text, imagePrompt, whyItWorks };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return { error: `Network error: ${message}` };
+  } catch {
+    return { error: "Network error. Please check your connection and try again." };
   }
 }

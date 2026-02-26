@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Trash2, ExternalLink, RefreshCw, Loader2 } from "lucide-react";
 import { loadHistory, deleteHistoryItem, updateHistoryItem } from "@/lib/history-storage";
 import { postTweet } from "@/app/actions/post-tweet";
-import { loadXToken } from "@/lib/x-token-storage";
 import type { HistoryItem, HistoryItemStatus } from "@/lib/history-schema";
 
 function formatDate(iso: string): string {
@@ -42,17 +41,9 @@ export default function HistoryPage() {
   }, []);
 
   const handlePostNow = async (item: HistoryItem) => {
-    const accessToken = loadXToken();
-    if (!accessToken) {
-      setPostErrors((prev) => ({
-        ...prev,
-        [item.id]: "X account not connected. Go to Settings.",
-      }));
-      return;
-    }
     setPostingId(item.id);
     setPostErrors((prev) => { const next = { ...prev }; delete next[item.id]; return next; });
-    const result = await postTweet(item.editedText, accessToken);
+    const result = await postTweet(item.editedText);
     setPostingId(null);
     if ("error" in result) {
       setPostErrors((prev) => ({ ...prev, [item.id]: result.error }));

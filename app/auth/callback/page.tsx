@@ -3,8 +3,6 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { exchangeXCode } from "@/app/actions/x-token";
-import { saveXToken } from "@/lib/x-token-storage";
-import { loadSettings } from "@/lib/settings-storage";
 
 function CallbackContent() {
   const searchParams = useSearchParams();
@@ -37,28 +35,18 @@ function CallbackContent() {
       return;
     }
 
-    const { xClientId, xClientSecret } = loadSettings();
-    if (!xClientId || !xClientSecret) {
-      setError("X credentials not found. Please save them in Settings first.");
-      setStatus("error");
-      return;
-    }
-
     const callbackUrl = `${window.location.origin}/auth/callback`;
 
-    exchangeXCode(code, codeVerifier, xClientId, xClientSecret, callbackUrl).then(
-      (result) => {
-        if ("error" in result) {
-          setError(result.error);
-          setStatus("error");
-          return;
-        }
-        saveXToken(result.accessToken);
-        sessionStorage.removeItem("x_code_verifier");
-        sessionStorage.removeItem("x_oauth_state");
-        router.replace("/generate");
+    exchangeXCode(code, codeVerifier, callbackUrl).then((result) => {
+      if ("error" in result) {
+        setError(result.error);
+        setStatus("error");
+        return;
       }
-    );
+      sessionStorage.removeItem("x_code_verifier");
+      sessionStorage.removeItem("x_oauth_state");
+      router.replace("/settings");
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

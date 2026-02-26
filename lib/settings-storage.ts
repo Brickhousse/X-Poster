@@ -1,19 +1,21 @@
-import type { SettingsFormValues } from "./settings-schema";
-
 const STORAGE_KEY = "xposter_settings";
 
-export function loadSettings(): Partial<SettingsFormValues> {
+interface StoredSettings {
+  openaiApiKey?: string;
+}
+
+export function loadSettings(): StoredSettings {
   if (typeof window === "undefined") return {};
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
-    return JSON.parse(raw) as Partial<SettingsFormValues>;
+    return JSON.parse(raw) as StoredSettings;
   } catch {
     return {};
   }
 }
 
-export function saveSettings(values: SettingsFormValues): void {
+export function saveSettings(values: StoredSettings): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
 }

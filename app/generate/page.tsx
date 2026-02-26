@@ -8,8 +8,7 @@ import { generateSchema, type GenerateFormValues } from "@/lib/generation-schema
 import { generateText } from "@/app/actions/generate-text";
 import { generateImage } from "@/app/actions/generate-image";
 import { postTweet } from "@/app/actions/post-tweet";
-import { loadSettings } from "@/lib/settings-storage";
-import { loadXToken } from "@/lib/x-token-storage";
+import { getSessionStatus } from "@/app/actions/get-session-status";
 import { addHistoryItem, updateHistoryItem } from "@/lib/history-storage";
 
 export default function GeneratePage() {
@@ -41,6 +40,11 @@ export default function GeneratePage() {
     if (prefilledPrompt) setValue("prompt", prefilledPrompt);
     if (prefilledText) setGeneratedText(prefilledText);
     if (prefilledImageUrl) setGeneratedImageUrl(prefilledImageUrl);
+
+    // Check session status on mount for missing key notice
+    getSessionStatus().then((status) => {
+      if (!status.hasGrokKey) setMissingKey(true);
+    });
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -64,23 +68,18 @@ export default function GeneratePage() {
     setImageError(null);
     setMissingKey(false);
 
-    const { grokApiKey } = loadSettings();
-    if (!grokApiKey) {
-      setMissingKey(true);
-      return;
-    }
-
     setLastPrompt(values.prompt);
     setIsGenerating(true);
     try {
       // Step 1: generate post text + crafted image prompt
-      const textResult = await generateText(values.prompt, grokApiKey);
+      const textResult = await generateText(values.prompt);
 
       let resolvedText: string | null = null;
       let imagePrompt = values.prompt;
 
       if ("error" in textResult) {
         setTextError(textResult.error);
+        if (textResult.error.includes("API key not set")) setMissingKey(true);
       } else {
         resolvedText = textResult.text;
         imagePrompt = textResult.imagePrompt;
@@ -90,7 +89,7 @@ export default function GeneratePage() {
       }
 
       // Step 2: generate image using the crafted prompt
-      const imageResult = await generateImage(imagePrompt, grokApiKey);
+      const imageResult = await generateImage(imagePrompt);
       const resolvedImageUrl = "error" in imageResult ? null : imageResult.url;
 
       if ("error" in imageResult) {
@@ -119,14 +118,9 @@ export default function GeneratePage() {
   const handleApproveAndPost = async () => {
     setPostError(null);
     setPostSuccess(null);
-    const accessToken = loadXToken();
-    if (!accessToken) {
-      setPostError("X account not connected. Go to Settings to connect.");
-      return;
-    }
     setIsPosting(true);
     try {
-      const result = await postTweet(editedText, accessToken);
+      const result = await postTweet(editedText);
       if ("error" in result) {
         setPostError(result.error);
       } else {
@@ -190,16 +184,14 @@ export default function GeneratePage() {
   };
 
   const handleRegenerateImage = async () => {
-    const { grokApiKey } = loadSettings();
-    if (!grokApiKey) { setMissingKey(true); return; }
-
     setIsRegeneratingImage(true);
     setImageError(null);
     setGeneratedImageUrl(null);
     try {
-      const result = await generateImage(lastImagePrompt || lastPrompt, grokApiKey);
+      const result = await generateImage(lastImagePrompt || lastPrompt);
       if ("error" in result) {
         setImageError(result.error);
+        if (result.error.includes("API key not set")) setMissingKey(true);
       } else {
         setGeneratedImageUrl(result.url);
       }
@@ -360,7 +352,7 @@ export default function GeneratePage() {
           {postError && (
             <p className="text-sm text-red-400">
               {postError}{" "}
-              {postError.includes("connect") && (
+              {(postError.includes("connect") || postError.includes("Settings")) && (
                 <a href="/settings" className="underline hover:text-red-200">
                   Go to Settings →
                 </a>
