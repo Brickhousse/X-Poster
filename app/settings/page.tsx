@@ -111,6 +111,17 @@ export default function SettingsPage() {
               <p className="text-xs text-red-400">{errors.grokApiKey.message}</p>
             )}
           </div>
+          <p className="text-xs text-slate-500">
+            Need help?{" "}
+            <a
+              href="https://console.x.ai/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-400 underline hover:text-slate-200"
+            >
+              Get your Grok API key at console.x.ai →
+            </a>
+          </p>
         </section>
 
         {/* OpenAI API */}
@@ -141,6 +152,17 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
+          <p className="text-xs text-slate-500">
+            Need help?{" "}
+            <a
+              href="https://platform.openai.com/api-keys"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-400 underline hover:text-slate-200"
+            >
+              Get your OpenAI API key at platform.openai.com →
+            </a>
+          </p>
         </section>
 
         {/* X (Twitter) OAuth 2.0 */}
