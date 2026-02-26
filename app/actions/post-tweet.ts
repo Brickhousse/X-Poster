@@ -1,7 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { TwitterApi, EUploadMimeType } from "twitter-api-v2";
+import { TwitterApi, EUploadMimeType, ApiResponseError } from "twitter-api-v2";
 import { getIronSession } from "iron-session";
 import { z } from "zod";
 import { sessionOptions, type SessionData } from "@/lib/session";
@@ -41,10 +41,27 @@ export async function postTweet(text: string, imageUrl?: string): Promise<PostRe
     const tweetUrl = `https://x.com/i/web/status/${data.id}`;
     return { id: data.id, tweetUrl };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "";
+    if (err instanceof ApiResponseError) {
+      const status = err.code;
+      const detail = err.errors?.[0];
+      const apiMessage = typeof detail === "object" && detail !== null && "message" in detail
+        ? (detail as { message: string }).message
+        : err.message;
+      if (status === 401 || status === 403) {
+        return { error: "Access token expired or revoked. Please reconnect your X account in Settings." };
+      }
+      if (status === 429) {
+        return { error: "Rate limit reached. Please wait a few minutes and try again." };
+      }
+      if (status === 400 || status === 422) {
+        return { error: `X rejected the post: ${apiMessage}` };
+      }
+      return { error: `X API error ${status}: ${apiMessage}` };
+    }
+    const message = err instanceof Error ? err.message : String(err);
     if (message.includes("401") || message.toLowerCase().includes("unauthorized")) {
       return { error: "Access token expired or revoked. Please reconnect your X account in Settings." };
     }
-    return { error: "Failed to post. Please try again." };
+    return { error: `Failed to post: ${message}` };
   }
 }
