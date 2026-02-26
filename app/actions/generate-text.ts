@@ -1,6 +1,6 @@
 "use server";
 
-const GROK_API_URL = "https://api.x.ai/v1/chat/completions";
+const GROK_API_URL = "https://api.x.ai/v1/responses";
 
 const SYSTEM_PROMPT = `You are GrokXPoster — an elite X (Twitter) content strategist and visual designer powered by Grok.
 Your ONLY job is to turn a user's short topic description into one professional, highly captivating X post + one perfectly matched, scroll-stopping image.
@@ -57,10 +57,11 @@ export async function generateText(
       },
       body: JSON.stringify({
         model: "grok-4-1-fast-reasoning",
-        messages: [
+        input: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: prompt },
         ],
+        tools: [{ type: "web_search" }],
         max_tokens: 800,
         temperature: 0.8,
       }),
@@ -72,10 +73,11 @@ export async function generateText(
     }
 
     const data = (await res.json()) as {
-      choices: { message: { content: string } }[];
+      output: { type: string; content: { type: string; text: string }[] }[];
     };
 
-    const raw = data.choices?.[0]?.message?.content?.trim();
+    const messageOutput = data.output?.find((o) => o.type === "message");
+    const raw = messageOutput?.content?.find((c) => c.type === "output_text")?.text?.trim();
     if (!raw) return { error: "Grok returned an empty response." };
 
     const xPostMatch = raw.match(/\*\*X Post\*\*\s*([\s\S]*?)(?=\*\*Image Prompt\*\*)/i);

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
-import { Loader2 } from "lucide-react";
+import { Loader2, MessageCircle, Repeat2, Heart, BarChart2 } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { generateSchema, type GenerateFormValues } from "@/lib/generation-schema";
 import { generateText } from "@/app/actions/generate-text";
@@ -204,8 +204,15 @@ export default function GeneratePage() {
     }
   };
 
+  const charCountColor =
+    editedText.length >= 280 ? "text-red-400" :
+    editedText.length >= 240 ? "text-amber-400" :
+    "text-slate-500";
+
   return (
-    <div className="max-w-2xl">
+    <div className="flex gap-8 items-start">
+      {/* LEFT COLUMN */}
+      <div className="min-w-0 flex-1 max-w-xl">
       <h1 className="mb-6 text-xl font-semibold text-slate-100">Generate</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -261,7 +268,7 @@ export default function GeneratePage() {
                 onChange={(e) => setEditedText(e.target.value)}
                 className="w-full resize-none rounded-md border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-100 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
               />
-              <p className={`text-right text-xs ${editedText.length >= 280 ? "text-red-400" : "text-slate-500"}`}>
+              <p className={`text-right text-xs ${charCountColor}`}>
                 {editedText.length}/280
               </p>
             </div>
@@ -403,6 +410,82 @@ export default function GeneratePage() {
           </button>
         </div>
       )}
+      </div>
+      {/* RIGHT COLUMN */}
+      <div className="w-96 flex-shrink-0 sticky top-6">
+        <p className="mb-3 text-xs font-medium uppercase tracking-widest text-slate-500">Preview</p>
+
+        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+
+          {/* Header */}
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3">
+              <div className="h-10 w-10 flex-shrink-0 rounded-full bg-slate-700" />
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-slate-100 leading-tight">Your Name</span>
+                <span className="text-sm text-slate-500 leading-tight">@yourhandle</span>
+              </div>
+            </div>
+            <span className="text-slate-400 text-lg font-bold leading-none select-none">𝕏</span>
+          </div>
+
+          {/* Body text — 3 states */}
+          <div className="mt-3">
+            {isGenerating && !generatedText ? (
+              <div className="space-y-2">
+                <div className="h-3.5 w-full animate-pulse rounded bg-slate-700" />
+                <div className="h-3.5 w-5/6 animate-pulse rounded bg-slate-700" />
+                <div className="h-3.5 w-4/6 animate-pulse rounded bg-slate-700" />
+              </div>
+            ) : editedText ? (
+              <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-100">{editedText}</p>
+            ) : (
+              <p className="text-sm italic text-slate-600">Your post will appear here…</p>
+            )}
+          </div>
+
+          {/* Image — 3 states */}
+          <div className="mt-3">
+            {(isGenerating || isRegeneratingImage) && !generatedImageUrl ? (
+              <div className="h-48 w-full animate-pulse rounded-xl bg-slate-800" />
+            ) : generatedImageUrl ? (
+              <button
+                type="button"
+                onClick={() => setShowImageModal(true)}
+                className="block w-full overflow-hidden rounded-xl border border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                title="Click to expand"
+              >
+                <img src={generatedImageUrl} alt="Post image" className="w-full object-cover" />
+              </button>
+            ) : null}
+          </div>
+
+          {/* Char count */}
+          {(editedText || isGenerating) && (
+            <div className="mt-2 text-right">
+              <span className={`text-xs ${charCountColor}`}>{editedText.length}/280</span>
+            </div>
+          )}
+
+          {/* Engagement bar */}
+          <div className="mt-3 flex items-center justify-between border-t border-slate-800 pt-3">
+            {[
+              { Icon: MessageCircle, label: "Reply" },
+              { Icon: Repeat2, label: "Repost" },
+              { Icon: Heart, label: "Like" },
+              { Icon: BarChart2, label: "Views" },
+            ].map(({ Icon, label }) => (
+              <button key={label} type="button" disabled
+                className="flex items-center gap-1.5 text-slate-600 cursor-default" aria-label={label}>
+                <Icon className="h-4 w-4" />
+                <span className="text-xs">—</span>
+              </button>
+            ))}
+          </div>
+
+        </div>
+      </div>
+
       {/* Full-size image modal */}
       {showImageModal && generatedImageUrl && (
         <div
