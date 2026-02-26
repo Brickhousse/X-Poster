@@ -195,7 +195,7 @@ export default function GeneratePage() {
     setImageError(null);
     setGeneratedImageUrl(null);
     try {
-      const result = await generateImage(lastImagePrompt || lastPrompt);
+      const result = await generateImage(lastImagePrompt || editedText || lastPrompt);
       if ("error" in result) {
         setImageError(result.error);
         if (result.error.includes("API key not set")) setMissingKey(true);

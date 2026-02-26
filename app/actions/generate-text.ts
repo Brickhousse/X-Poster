@@ -102,7 +102,7 @@ export async function generateText(prompt: string): Promise<TextResult> {
     const whyItWorksMatch = raw.match(/\*\*Why it works\*\*\s*([\s\S]*?)$/i);
 
     const text = xPostMatch?.[1]?.trim() ?? raw;
-    const imagePrompt = imagePromptMatch?.[1]?.trim() ?? parsed.data.prompt;
+    const imagePrompt = imagePromptMatch?.[1]?.trim() ?? text;
     const whyItWorks = whyItWorksMatch?.[1]?.trim() ?? "";
 
     return { text, imagePrompt, whyItWorks };
