@@ -22,16 +22,22 @@ export default function SettingsPage() {
   const [xConnecting, setXConnecting] = useState(false);
   const [xConnectError, setXConnectError] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [xTier, setXTier] = useState<"free" | "premium">("free");
 
   useEffect(() => {
     getSessionStatus().then((status) => {
       setHasGrokKey(status.hasGrokKey);
       setXConnected(status.hasXToken);
     });
-    // Load OpenAI key from localStorage (stays client-side for now)
     const saved = loadSettings();
     if (saved.openaiApiKey) setOpenaiKey(saved.openaiApiKey);
+    if (saved.xTier) setXTier(saved.xTier);
   }, []);
+
+  const handleTierChange = (tier: "free" | "premium") => {
+    setXTier(tier);
+    saveSettings({ ...loadSettings(), xTier: tier });
+  };
 
   const handleSaveGrok = async () => {
     setGrokError(null);
@@ -201,6 +207,38 @@ export default function SettingsPage() {
           <p className="text-xs text-slate-500">
             This app uses a shared X Developer App — no credentials needed from you.
           </p>
+
+          {/* X Tier toggle */}
+          <div className="space-y-1">
+            <p className="text-sm text-slate-400">X subscription tier</p>
+            <div className="flex rounded-md border border-slate-700 p-0.5 w-fit">
+              <button
+                type="button"
+                onClick={() => handleTierChange("free")}
+                className={`rounded px-4 py-1.5 text-sm font-medium transition-colors ${
+                  xTier === "free"
+                    ? "bg-slate-700 text-slate-100"
+                    : "text-slate-500 hover:text-slate-300"
+                }`}
+              >
+                Free
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTierChange("premium")}
+                className={`rounded px-4 py-1.5 text-sm font-medium transition-colors ${
+                  xTier === "premium"
+                    ? "bg-slate-700 text-slate-100"
+                    : "text-slate-500 hover:text-slate-300"
+                }`}
+              >
+                Premium
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">
+              {xTier === "premium" ? "25,000 character limit" : "280 character limit"}
+            </p>
+          </div>
           {xConnected ? (
             <div className="flex items-center gap-4">
               <span className="text-sm text-green-400">Connected</span>

@@ -2,6 +2,7 @@ const STORAGE_KEY = "xposter_settings";
 
 interface StoredSettings {
   openaiApiKey?: string;
+  xTier?: "free" | "premium";
 }
 
 export function loadSettings(): StoredSettings {

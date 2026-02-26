@@ -9,6 +9,7 @@ import { generateText } from "@/app/actions/generate-text";
 import { generateImage } from "@/app/actions/generate-image";
 import { postTweet } from "@/app/actions/post-tweet";
 import { getSessionStatus } from "@/app/actions/get-session-status";
+import { loadSettings } from "@/lib/settings-storage";
 import { addHistoryItem, updateHistoryItem } from "@/lib/history-storage";
 
 export default function GeneratePage() {
@@ -31,6 +32,7 @@ export default function GeneratePage() {
   const currentHistoryId = useRef<string | null>(null);
   const [lastPrompt, setLastPrompt] = useState<string>("");
   const [editedText, setEditedText] = useState<string>("");
+  const [charLimit, setCharLimit] = useState(280);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -45,6 +47,8 @@ export default function GeneratePage() {
     getSessionStatus().then((status) => {
       if (!status.hasGrokKey) setMissingKey(true);
     });
+    const { xTier } = loadSettings();
+    setCharLimit(xTier === "premium" ? 25000 : 280);
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -201,8 +205,8 @@ export default function GeneratePage() {
   };
 
   const charCountColor =
-    editedText.length >= 280 ? "text-red-400" :
-    editedText.length >= 240 ? "text-amber-400" :
+    editedText.length >= charLimit ? "text-red-400" :
+    editedText.length >= charLimit * 0.9 ? "text-amber-400" :
     "text-slate-500";
 
   return (
@@ -265,7 +269,7 @@ export default function GeneratePage() {
                 className="w-full resize-none rounded-md border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-100 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
               />
               <p className={`text-right text-xs ${charCountColor}`}>
-                {editedText.length}/280
+                {editedText.length}/{charLimit.toLocaleString()}
               </p>
             </div>
           )}
@@ -459,7 +463,7 @@ export default function GeneratePage() {
           {/* Char count */}
           {(editedText || isGenerating) && (
             <div className="mt-2 text-right">
-              <span className={`text-xs ${charCountColor}`}>{editedText.length}/280</span>
+              <span className={`text-xs ${charCountColor}`}>{editedText.length}/{charLimit.toLocaleString()}</span>
             </div>
           )}
 

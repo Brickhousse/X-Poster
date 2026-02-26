@@ -7,7 +7,7 @@ import { z } from "zod";
 import { sessionOptions, type SessionData } from "@/lib/session";
 
 const schema = z.object({
-  text: z.string().min(1, "Post cannot be empty.").max(280, "Post exceeds 280 characters — please shorten it before posting."),
+  text: z.string().min(1, "Post cannot be empty.").max(25000, "Post exceeds the maximum allowed length."),
 });
 
 type PostResult = { id: string; tweetUrl: string } | { error: string };
