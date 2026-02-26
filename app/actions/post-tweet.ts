@@ -1,7 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { TwitterApi } from "twitter-api-v2";
+import { TwitterApi, EUploadMimeType } from "twitter-api-v2";
 import { getIronSession } from "iron-session";
 import { z } from "zod";
 import { sessionOptions, type SessionData } from "@/lib/session";
@@ -30,7 +30,7 @@ export async function postTweet(text: string, imageUrl?: string): Promise<PostRe
     if (parsed.data.imageUrl) {
       const imgRes = await fetch(parsed.data.imageUrl);
       const buffer = Buffer.from(await imgRes.arrayBuffer());
-      const mimeType = imgRes.headers.get("content-type")?.split(";")[0] ?? "image/jpeg";
+      const mimeType = (imgRes.headers.get("content-type")?.split(";")[0] ?? "image/jpeg") as EUploadMimeType;
       const mediaId = await client.v2.uploadMedia(buffer, { media_type: mimeType });
       const { data } = await client.v2.tweet({ text: parsed.data.text, media: { media_ids: [mediaId] } });
       const tweetUrl = `https://x.com/i/web/status/${data.id}`;
