@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import Sidebar from "./sidebar";
+import { GenerateProvider } from "@/lib/generate-context";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
 
   return (
+    <GenerateProvider>
     <div className="flex h-screen overflow-hidden">
       {/* ── Mobile top bar ── */}
       <div className="fixed inset-x-0 top-0 z-30 flex h-12 items-center border-b border-slate-800 bg-slate-950 px-4 md:hidden">
@@ -45,5 +47,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
     </div>
+    </GenerateProvider>
   );
 }

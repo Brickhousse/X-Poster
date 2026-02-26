@@ -1,65 +1,29 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Loader2, MessageCircle, Repeat2, Heart, BarChart2 } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { generateSchema, type GenerateFormValues } from "@/lib/generation-schema";
-import { generateText } from "@/app/actions/generate-text";
-import { generateImage } from "@/app/actions/generate-image";
-import { postTweet } from "@/app/actions/post-tweet";
-import { fetchLinkPreview } from "@/app/actions/fetch-link-preview";
 import { getSessionStatus } from "@/app/actions/get-session-status";
 import { loadSettings } from "@/lib/settings-storage";
-import { addHistoryItem, updateHistoryItem } from "@/lib/history-storage";
+import { useGenerate } from "@/lib/generate-context";
 
 export default function GeneratePage() {
-  const [generatedText, setGeneratedText] = useState<string | null>(null);
-  const [textError, setTextError] = useState<string | null>(null);
-  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
-  const [imageError, setImageError] = useState<string | null>(null);
-  const [missingKey, setMissingKey] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
+  const {
+    generatedText, textError, generatedImageUrl, imageError, missingKey,
+    isGenerating, isRegeneratingImage, whyItWorks,
+    isPosting, postSuccess, postError, scheduleSuccess,
+    editedText, charLimit,
+    linkPreviewImageUrl, isFetchingLinkPreview, selectedImage,
+    setEditedText, setCharLimit, setMissingKey, setSelectedImage,
+    onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage,
+    prefill,
+  } = useGenerate();
+
   const [showImageModal, setShowImageModal] = useState(false);
-  const [whyItWorks, setWhyItWorks] = useState<string>("");
-  const [lastImagePrompt, setLastImagePrompt] = useState<string>("");
-  const [isPosting, setIsPosting] = useState(false);
-  const [postSuccess, setPostSuccess] = useState<{ tweetUrl: string } | null>(null);
-  const [postError, setPostError] = useState<string | null>(null);
   const [showSchedule, setShowSchedule] = useState(false);
   const [scheduledFor, setScheduledFor] = useState("");
-  const [scheduleSuccess, setScheduleSuccess] = useState(false);
-  const currentHistoryId = useRef<string | null>(null);
-  const [lastPrompt, setLastPrompt] = useState<string>("");
-  const [editedText, setEditedText] = useState<string>("");
-  const [charLimit, setCharLimit] = useState(280);
-  const [linkPreviewImageUrl, setLinkPreviewImageUrl] = useState<string | null>(null);
-  const [isFetchingLinkPreview, setIsFetchingLinkPreview] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<"generated" | "link" | "none">("generated");
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const prefilledPrompt = params.get("prompt");
-    const prefilledText = params.get("text");
-    const prefilledImageUrl = params.get("imageUrl");
-    const prefilledImagePrompt = params.get("imagePrompt");
-    if (prefilledPrompt) { setValue("prompt", prefilledPrompt); setLastPrompt(prefilledPrompt); }
-    if (prefilledText) setGeneratedText(prefilledText);
-    if (prefilledImageUrl) setGeneratedImageUrl(prefilledImageUrl);
-    if (prefilledImagePrompt) setLastImagePrompt(prefilledImagePrompt);
-
-    // Check session status on mount for missing key notice
-    getSessionStatus().then((status) => {
-      if (!status.hasGrokKey) setMissingKey(true);
-    });
-    const { xTier } = loadSettings();
-    setCharLimit(xTier === "premium" ? 25000 : 280);
-  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (generatedText !== null) setEditedText(generatedText);
-  }, [generatedText]);
 
   const {
     register,
@@ -71,163 +35,28 @@ export default function GeneratePage() {
     defaultValues: { prompt: "" },
   });
 
-  const onSubmit = async (values: GenerateFormValues) => {
-    setGeneratedText(null);
-    setTextError(null);
-    setGeneratedImageUrl(null);
-    setImageError(null);
-    setMissingKey(false);
-    setLinkPreviewImageUrl(null);
-    setSelectedImage("generated");
-
-    setLastPrompt(values.prompt);
-    setIsGenerating(true);
-    try {
-      // Step 1: generate post text + crafted image prompt
-      const textResult = await generateText(values.prompt);
-
-      let resolvedText: string | null = null;
-      let imagePrompt = values.prompt;
-
-      if ("error" in textResult) {
-        setTextError(textResult.error);
-        if (textResult.error.includes("API key not set")) setMissingKey(true);
-      } else {
-        resolvedText = textResult.text;
-        imagePrompt = textResult.imagePrompt;
-        setGeneratedText(textResult.text);
-        setWhyItWorks(textResult.whyItWorks);
-        setLastImagePrompt(textResult.imagePrompt);
-
-        // Auto-fetch og:image from any URL in the generated text
-        const urlMatch = textResult.text.match(/https?:\/\/[^\s\]()]+/);
-        if (urlMatch) {
-          setIsFetchingLinkPreview(true);
-          fetchLinkPreview(urlMatch[0]).then((res) => {
-            if ("imageUrl" in res) setLinkPreviewImageUrl(res.imageUrl);
-            setIsFetchingLinkPreview(false);
-          });
-        }
-      }
-
-      // Step 2: generate image using the crafted prompt
-      const imageResult = await generateImage(imagePrompt);
-      const resolvedImageUrl = "error" in imageResult ? null : imageResult.url;
-
-      if ("error" in imageResult) {
-        setImageError(imageResult.error);
-      } else {
-        setGeneratedImageUrl(imageResult.url);
-      }
-
-      if (resolvedText) {
-        const id = crypto.randomUUID();
-        currentHistoryId.current = id;
-        addHistoryItem({
-          id,
-          prompt: values.prompt,
-          imagePrompt,
-          editedText: resolvedText,
-          imageUrl: resolvedImageUrl,
-          status: "draft",
-          createdAt: new Date().toISOString(),
-        });
-      }
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleApproveAndPost = async () => {
-    setPostError(null);
-    setPostSuccess(null);
-    setIsPosting(true);
-    try {
-      const imageToPost =
-        selectedImage === "generated" ? generatedImageUrl :
-        selectedImage === "link" ? linkPreviewImageUrl :
-        null;
-      const result = await postTweet(editedText, imageToPost ?? undefined);
-      if ("error" in result) {
-        setPostError(result.error);
-      } else {
-        setPostSuccess({ tweetUrl: result.tweetUrl });
-        if (currentHistoryId.current) {
-          updateHistoryItem(currentHistoryId.current, {
-            editedText,
-            status: "posted",
-            tweetUrl: result.tweetUrl,
-            postedAt: new Date().toISOString(),
-          });
-        }
-      }
-    } finally {
-      setIsPosting(false);
-    }
-  };
-
-  const handleSchedule = () => {
-    if (!scheduledFor) return;
-    const id = currentHistoryId.current ?? crypto.randomUUID();
-    const isoScheduled = new Date(scheduledFor).toISOString();
-    if (currentHistoryId.current) {
-      updateHistoryItem(currentHistoryId.current, {
-        editedText,
-        status: "scheduled",
-        scheduledFor: isoScheduled,
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const prefilledPrompt = params.get("prompt");
+    const prefilledText = params.get("text");
+    const prefilledImageUrl = params.get("imageUrl");
+    const prefilledImagePrompt = params.get("imagePrompt");
+    if (prefilledPrompt) setValue("prompt", prefilledPrompt);
+    if (prefilledPrompt || prefilledText || prefilledImageUrl || prefilledImagePrompt) {
+      prefill({
+        prompt: prefilledPrompt ?? undefined,
+        text: prefilledText ?? undefined,
+        imageUrl: prefilledImageUrl ?? undefined,
+        imagePrompt: prefilledImagePrompt ?? undefined,
       });
-    } else {
-      addHistoryItem({
-        id,
-        prompt: lastPrompt,
-        editedText,
-        imageUrl: generatedImageUrl,
-        status: "scheduled",
-        createdAt: new Date().toISOString(),
-        scheduledFor: isoScheduled,
-      });
-      currentHistoryId.current = id;
     }
-    setScheduleSuccess(true);
-    setShowSchedule(false);
-  };
 
-  const handleDiscard = () => {
-    setGeneratedText(null);
-    setEditedText("");
-    setTextError(null);
-    setGeneratedImageUrl(null);
-    setImageError(null);
-    setLastPrompt("");
-    setLastImagePrompt("");
-    setWhyItWorks("");
-    setMissingKey(false);
-    setPostSuccess(null);
-    setPostError(null);
-    setShowSchedule(false);
-    setScheduledFor("");
-    setScheduleSuccess(false);
-    setLinkPreviewImageUrl(null);
-    setSelectedImage("generated");
-    currentHistoryId.current = null;
-  };
-
-  const handleRegenerateImage = async () => {
-    setIsRegeneratingImage(true);
-    setImageError(null);
-    setGeneratedImageUrl(null);
-    try {
-      const result = await generateImage(lastImagePrompt || editedText || lastPrompt);
-      if ("error" in result) {
-        setImageError(result.error);
-        if (result.error.includes("API key not set")) setMissingKey(true);
-      } else {
-        setGeneratedImageUrl(result.url);
-      }
-    } finally {
-      setIsRegeneratingImage(false);
-    }
-  };
+    getSessionStatus().then((status) => {
+      if (!status.hasGrokKey) setMissingKey(true);
+    });
+    const { xTier } = loadSettings();
+    setCharLimit(xTier === "premium" ? 25000 : 280);
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const charCountColor =
     editedText.length >= charLimit ? "text-red-400" :
@@ -345,7 +174,7 @@ export default function GeneratePage() {
                   />
                   <button
                     type="button"
-                    onClick={handleSchedule}
+                    onClick={() => { handleSchedule(scheduledFor); setShowSchedule(false); setScheduledFor(""); }}
                     disabled={!scheduledFor}
                     className="rounded-md border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
@@ -492,6 +321,7 @@ export default function GeneratePage() {
         </div>
       )}
       </div>
+
       {/* RIGHT COLUMN */}
       <div className="sticky top-6">
         {/* Why it works */}
