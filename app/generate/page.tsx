@@ -263,7 +263,7 @@ export default function GeneratePage() {
           ) : (
             <div className="space-y-1">
               <textarea
-                rows={4}
+                rows={8}
                 value={editedText}
                 onChange={(e) => setEditedText(e.target.value)}
                 className="w-full resize-none rounded-md border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-100 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
@@ -273,14 +273,6 @@ export default function GeneratePage() {
               </p>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Why it works */}
-      {whyItWorks && !isGenerating && (
-        <div className="mt-3 rounded-md border border-slate-700/50 bg-slate-800/50 px-4 py-3 space-y-1">
-          <p className="text-xs font-medium text-slate-400">Why it works</p>
-          <div className="text-xs text-slate-500 whitespace-pre-line">{whyItWorks}</div>
         </div>
       )}
 
@@ -413,6 +405,14 @@ export default function GeneratePage() {
       </div>
       {/* RIGHT COLUMN */}
       <div className="sticky top-6">
+        {/* Why it works */}
+        {whyItWorks && !isGenerating && (
+          <div className="mb-4 rounded-md border border-slate-700/50 bg-slate-800/50 px-4 py-3 space-y-1">
+            <p className="text-sm font-medium text-slate-400">Why it works</p>
+            <div className="text-sm text-slate-500 whitespace-pre-line">{whyItWorks}</div>
+          </div>
+        )}
+
         <p className="mb-3 text-xs font-medium uppercase tracking-widest text-slate-500">Preview</p>
 
         <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
