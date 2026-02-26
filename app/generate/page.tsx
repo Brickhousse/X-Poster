@@ -21,6 +21,8 @@ export default function GeneratePage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [whyItWorks, setWhyItWorks] = useState<string>("");
+  const [lastImagePrompt, setLastImagePrompt] = useState<string>("");
   const [isPosting, setIsPosting] = useState(false);
   const [postSuccess, setPostSuccess] = useState<{ tweetUrl: string } | null>(null);
   const [postError, setPostError] = useState<string | null>(null);
@@ -67,19 +69,25 @@ export default function GeneratePage() {
     setLastPrompt(values.prompt);
     setIsGenerating(true);
     try {
-      const [textResult, imageResult] = await Promise.all([
-        generateText(values.prompt, grokApiKey),
-        generateImage(values.prompt, grokApiKey),
-      ]);
+      // Step 1: generate post text + crafted image prompt
+      const textResult = await generateText(values.prompt, grokApiKey);
 
-      const resolvedText = "error" in textResult ? null : textResult.text;
-      const resolvedImageUrl = "error" in imageResult ? null : imageResult.url;
+      let resolvedText: string | null = null;
+      let imagePrompt = values.prompt;
 
       if ("error" in textResult) {
         setTextError(textResult.error);
       } else {
+        resolvedText = textResult.text;
+        imagePrompt = textResult.imagePrompt;
         setGeneratedText(textResult.text);
+        setWhyItWorks(textResult.whyItWorks);
+        setLastImagePrompt(textResult.imagePrompt);
       }
+
+      // Step 2: generate image using the crafted prompt
+      const imageResult = await generateImage(imagePrompt, grokApiKey);
+      const resolvedImageUrl = "error" in imageResult ? null : imageResult.url;
 
       if ("error" in imageResult) {
         setImageError(imageResult.error);
@@ -166,6 +174,8 @@ export default function GeneratePage() {
     setGeneratedImageUrl(null);
     setImageError(null);
     setLastPrompt("");
+    setLastImagePrompt("");
+    setWhyItWorks("");
     setMissingKey(false);
     setPostSuccess(null);
     setPostError(null);
@@ -183,7 +193,7 @@ export default function GeneratePage() {
     setImageError(null);
     setGeneratedImageUrl(null);
     try {
-      const result = await generateImage(lastPrompt, grokApiKey);
+      const result = await generateImage(lastImagePrompt || lastPrompt, grokApiKey);
       if ("error" in result) {
         setImageError(result.error);
       } else {
@@ -256,6 +266,14 @@ export default function GeneratePage() {
               </p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Why it works */}
+      {whyItWorks && !isGenerating && (
+        <div className="mt-3 rounded-md border border-slate-700/50 bg-slate-800/50 px-4 py-3 space-y-1">
+          <p className="text-xs font-medium text-slate-400">Why it works</p>
+          <div className="text-xs text-slate-500 whitespace-pre-line">{whyItWorks}</div>
         </div>
       )}
 
