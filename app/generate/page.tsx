@@ -39,7 +39,7 @@ export default function GeneratePage() {
     const prefilledPrompt = params.get("prompt");
     const prefilledText = params.get("text");
     const prefilledImageUrl = params.get("imageUrl");
-    if (prefilledPrompt) setValue("prompt", prefilledPrompt);
+    if (prefilledPrompt) { setValue("prompt", prefilledPrompt); setLastPrompt(prefilledPrompt); }
     if (prefilledText) setGeneratedText(prefilledText);
     if (prefilledImageUrl) setGeneratedImageUrl(prefilledImageUrl);
 
