@@ -36,7 +36,11 @@ export default function GeneratePage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const prefilledPrompt = params.get("prompt");
+    const prefilledText = params.get("text");
+    const prefilledImageUrl = params.get("imageUrl");
     if (prefilledPrompt) setValue("prompt", prefilledPrompt);
+    if (prefilledText) setGeneratedText(prefilledText);
+    if (prefilledImageUrl) setGeneratedImageUrl(prefilledImageUrl);
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

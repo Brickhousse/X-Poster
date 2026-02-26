@@ -72,8 +72,11 @@ export default function HistoryPage() {
     }
   };
 
-  const handleUseAgain = (prompt: string) => {
-    router.push(`/generate?prompt=${encodeURIComponent(prompt)}`);
+  const handleUseAgain = (item: HistoryItem) => {
+    const params = new URLSearchParams({ prompt: item.prompt });
+    if (item.editedText) params.set("text", item.editedText);
+    if (item.imageUrl) params.set("imageUrl", item.imageUrl);
+    router.push(`/generate?${params.toString()}`);
   };
 
   const handleDelete = (id: string) => {
@@ -162,7 +165,7 @@ export default function HistoryPage() {
             <div className="flex shrink-0 flex-col items-center gap-2">
               <button
                 type="button"
-                onClick={() => handleUseAgain(item.prompt)}
+                onClick={() => handleUseAgain(item)}
                 className="text-slate-600 hover:text-slate-300 focus:outline-none"
                 aria-label="Use prompt again"
                 title="Use again"
