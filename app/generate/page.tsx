@@ -8,6 +8,7 @@ import { generateSchema, type GenerateFormValues } from "@/lib/generation-schema
 import { generateText } from "@/app/actions/generate-text";
 import { generateImage } from "@/app/actions/generate-image";
 import { postTweet } from "@/app/actions/post-tweet";
+import { fetchLinkPreview } from "@/app/actions/fetch-link-preview";
 import { getSessionStatus } from "@/app/actions/get-session-status";
 import { loadSettings } from "@/lib/settings-storage";
 import { addHistoryItem, updateHistoryItem } from "@/lib/history-storage";
@@ -33,6 +34,9 @@ export default function GeneratePage() {
   const [lastPrompt, setLastPrompt] = useState<string>("");
   const [editedText, setEditedText] = useState<string>("");
   const [charLimit, setCharLimit] = useState(280);
+  const [linkPreviewImageUrl, setLinkPreviewImageUrl] = useState<string | null>(null);
+  const [isFetchingLinkPreview, setIsFetchingLinkPreview] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<"generated" | "link" | "none">("generated");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -73,6 +77,8 @@ export default function GeneratePage() {
     setGeneratedImageUrl(null);
     setImageError(null);
     setMissingKey(false);
+    setLinkPreviewImageUrl(null);
+    setSelectedImage("generated");
 
     setLastPrompt(values.prompt);
     setIsGenerating(true);
@@ -92,6 +98,16 @@ export default function GeneratePage() {
         setGeneratedText(textResult.text);
         setWhyItWorks(textResult.whyItWorks);
         setLastImagePrompt(textResult.imagePrompt);
+
+        // Auto-fetch og:image from any URL in the generated text
+        const urlMatch = textResult.text.match(/https?:\/\/[^\s\]()]+/);
+        if (urlMatch) {
+          setIsFetchingLinkPreview(true);
+          fetchLinkPreview(urlMatch[0]).then((res) => {
+            if ("imageUrl" in res) setLinkPreviewImageUrl(res.imageUrl);
+            setIsFetchingLinkPreview(false);
+          });
+        }
       }
 
       // Step 2: generate image using the crafted prompt
@@ -127,7 +143,11 @@ export default function GeneratePage() {
     setPostSuccess(null);
     setIsPosting(true);
     try {
-      const result = await postTweet(editedText);
+      const imageToPost =
+        selectedImage === "generated" ? generatedImageUrl :
+        selectedImage === "link" ? linkPreviewImageUrl :
+        null;
+      const result = await postTweet(editedText, imageToPost ?? undefined);
       if ("error" in result) {
         setPostError(result.error);
       } else {
@@ -187,6 +207,8 @@ export default function GeneratePage() {
     setShowSchedule(false);
     setScheduledFor("");
     setScheduleSuccess(false);
+    setLinkPreviewImageUrl(null);
+    setSelectedImage("generated");
     currentHistoryId.current = null;
   };
 
@@ -405,6 +427,70 @@ export default function GeneratePage() {
           </button>
         </div>
       )}
+
+      {/* Image selection UI — shown when a link preview image is available */}
+      {(linkPreviewImageUrl || isFetchingLinkPreview) && !isGenerating && generatedText !== null && (
+        <div className="mt-6 space-y-3">
+          <h2 className="text-sm font-medium text-slate-300">Choose image to post</h2>
+          <div className="flex gap-3">
+            {/* Generated image card */}
+            <button
+              type="button"
+              onClick={() => setSelectedImage("generated")}
+              className={`flex-1 rounded-md border p-2 text-left transition-colors focus:outline-none ${
+                selectedImage === "generated"
+                  ? "border-slate-400 ring-2 ring-slate-400"
+                  : "border-slate-700 hover:border-slate-500"
+              }`}
+            >
+              {generatedImageUrl ? (
+                <img
+                  src={generatedImageUrl}
+                  alt="Generated"
+                  className="h-28 w-full rounded object-cover"
+                />
+              ) : (
+                <div className="h-28 w-full animate-pulse rounded bg-slate-800" />
+              )}
+              <p className="mt-1.5 text-center text-xs text-slate-400">Generated image</p>
+            </button>
+
+            {/* Link preview card */}
+            <button
+              type="button"
+              onClick={() => setSelectedImage("link")}
+              className={`flex-1 rounded-md border p-2 text-left transition-colors focus:outline-none ${
+                selectedImage === "link"
+                  ? "border-slate-400 ring-2 ring-slate-400"
+                  : "border-slate-700 hover:border-slate-500"
+              }`}
+            >
+              {isFetchingLinkPreview && !linkPreviewImageUrl ? (
+                <div className="h-28 w-full animate-pulse rounded bg-slate-800" />
+              ) : linkPreviewImageUrl ? (
+                <img
+                  src={linkPreviewImageUrl}
+                  alt="Link preview"
+                  className="h-28 w-full rounded object-cover"
+                />
+              ) : null}
+              <p className="mt-1.5 text-center text-xs text-slate-400">Link preview</p>
+            </button>
+          </div>
+
+          {/* No image option */}
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-500 hover:text-slate-300">
+            <input
+              type="radio"
+              name="imageChoice"
+              checked={selectedImage === "none"}
+              onChange={() => setSelectedImage("none")}
+              className="accent-slate-400"
+            />
+            No image
+          </label>
+        </div>
+      )}
       </div>
       {/* RIGHT COLUMN */}
       <div className="sticky top-6">
@@ -451,6 +537,16 @@ export default function GeneratePage() {
           <div className="mt-3">
             {(isGenerating || isRegeneratingImage) && !generatedImageUrl ? (
               <div className="h-48 w-full animate-pulse rounded-xl bg-slate-800" />
+            ) : selectedImage === "none" ? null
+            : selectedImage === "link" && linkPreviewImageUrl ? (
+              <button
+                type="button"
+                onClick={() => setShowImageModal(true)}
+                className="block w-full overflow-hidden rounded-xl border border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                title="Click to expand"
+              >
+                <img src={linkPreviewImageUrl} alt="Link preview image" className="w-full object-cover" />
+              </button>
             ) : generatedImageUrl ? (
               <button
                 type="button"
@@ -490,7 +586,7 @@ export default function GeneratePage() {
       </div>
 
       {/* Full-size image modal */}
-      {showImageModal && generatedImageUrl && (
+      {showImageModal && (selectedImage === "link" ? linkPreviewImageUrl : generatedImageUrl) && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
           onClick={() => setShowImageModal(false)}
@@ -505,8 +601,8 @@ export default function GeneratePage() {
               ✕
             </button>
             <img
-              src={generatedImageUrl}
-              alt="Generated full size"
+              src={(selectedImage === "link" ? linkPreviewImageUrl : generatedImageUrl)!}
+              alt="Full size image"
               className="max-h-[90vh] w-auto rounded-md object-contain"
             />
           </div>

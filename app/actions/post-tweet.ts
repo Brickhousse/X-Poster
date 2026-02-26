@@ -8,12 +8,13 @@ import { sessionOptions, type SessionData } from "@/lib/session";
 
 const schema = z.object({
   text: z.string().min(1, "Post cannot be empty.").max(25000, "Post exceeds the maximum allowed length."),
+  imageUrl: z.string().url().optional(),
 });
 
 type PostResult = { id: string; tweetUrl: string } | { error: string };
 
-export async function postTweet(text: string): Promise<PostResult> {
-  const parsed = schema.safeParse({ text });
+export async function postTweet(text: string, imageUrl?: string): Promise<PostResult> {
+  const parsed = schema.safeParse({ text, imageUrl });
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
@@ -25,6 +26,17 @@ export async function postTweet(text: string): Promise<PostResult> {
 
   try {
     const client = new TwitterApi(session.xAccessToken);
+
+    if (parsed.data.imageUrl) {
+      const imgRes = await fetch(parsed.data.imageUrl);
+      const buffer = Buffer.from(await imgRes.arrayBuffer());
+      const mimeType = imgRes.headers.get("content-type")?.split(";")[0] ?? "image/jpeg";
+      const mediaId = await client.v2.uploadMedia(buffer, { media_type: mimeType });
+      const { data } = await client.v2.tweet({ text: parsed.data.text, media: { media_ids: [mediaId] } });
+      const tweetUrl = `https://x.com/i/web/status/${data.id}`;
+      return { id: data.id, tweetUrl };
+    }
+
     const { data } = await client.v2.tweet(parsed.data.text);
     const tweetUrl = `https://x.com/i/web/status/${data.id}`;
     return { id: data.id, tweetUrl };
