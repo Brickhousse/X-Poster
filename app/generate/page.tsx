@@ -78,7 +78,7 @@ export default function GeneratePage() {
   const activeImageUrl = selectedImage === "generated" ? imageUrls[selectedImageIndex] : selectedImage === "link" ? linkPreviewImageUrl : null;
   const anyImageUrl = imageUrls[0] ?? imageUrls[1] ?? imageUrls[2];
   const anyImageVisible = imageUrls.some(Boolean) || imageErrors.some(Boolean) || isGenerating || isRegeneratingImage;
-  const showLinkCard = !isGenerating && (!!linkPreviewImageUrl || isFetchingLinkPreview);
+  const showLinkCard = !isGenerating && !!linkPreviewImageUrl;
 
   return (
     <div className="grid grid-cols-2 gap-8 items-start max-w-5xl">

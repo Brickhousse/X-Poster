@@ -76,7 +76,19 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
 
   const prefill = ({ prompt, text, imageUrls: urls, imagePrompt }: { prompt?: string; text?: string; imageUrls?: [string | null, string | null, string | null]; imagePrompt?: string }) => {
     if (prompt) setLastPrompt(prompt);
-    if (text) { setGeneratedText(text); setEditedText(text); }
+    if (text) {
+      setGeneratedText(text);
+      setEditedText(text);
+      setLinkPreviewImageUrl(null);
+      const urlMatch = text.match(/https?:\/\/[^\s\]()]+/);
+      if (urlMatch) {
+        setIsFetchingLinkPreview(true);
+        fetchLinkPreview(urlMatch[0]).then((res) => {
+          if ("imageUrl" in res) setLinkPreviewImageUrl(res.imageUrl);
+          setIsFetchingLinkPreview(false);
+        });
+      }
+    }
     if (urls) setImageUrls(urls);
     if (imagePrompt) setLastImagePrompts([imagePrompt, imagePrompt, imagePrompt]);
   };
