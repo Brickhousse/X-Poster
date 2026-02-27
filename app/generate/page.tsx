@@ -388,37 +388,6 @@ export default function GeneratePage() {
             )}
           </div>
 
-          {/* Expand selected image */}
-          {(() => {
-            const expandUrl =
-              selectedImage === "generated" ? imageUrls[selectedImageIndex] :
-              selectedImage === "link" ? linkPreviewImageUrl :
-              selectedImage === "custom" ? customImageUrl :
-              null;
-            return expandUrl ? (
-              <button
-                type="button"
-                onClick={() => { setModalImageUrl(expandUrl); setShowImageModal(true); }}
-                className="group relative block w-full overflow-hidden rounded-md border border-slate-700 focus:outline-none"
-                title="Click to expand"
-              >
-                <img src={expandUrl} alt="Selected image" className="w-full object-cover" />
-                <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-xs font-medium text-white opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">
-                  Click to expand
-                </span>
-              </button>
-            ) : null;
-          })()}
-
-          <button
-            type="button"
-            onClick={() => handleRegenerateImage()}
-            disabled={isGenerating || isRegeneratingImage}
-            className="flex items-center gap-2 rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isRegeneratingImage && <Loader2 className="h-3 w-3 animate-spin" />}
-            {isRegeneratingImage ? "Regenerating…" : "Regenerate all styles"}
-          </button>
           {!isGenerating && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
@@ -474,6 +443,38 @@ export default function GeneratePage() {
               {customUploadError && <p className="text-xs text-red-400">{customUploadError}</p>}
             </div>
           )}
+
+          {/* Expand selected image */}
+          {(() => {
+            const expandUrl =
+              selectedImage === "generated" ? imageUrls[selectedImageIndex] :
+              selectedImage === "link" ? linkPreviewImageUrl :
+              selectedImage === "custom" ? customImageUrl :
+              null;
+            return expandUrl ? (
+              <button
+                type="button"
+                onClick={() => { setModalImageUrl(expandUrl); setShowImageModal(true); }}
+                className="group relative block w-full overflow-hidden rounded-md border border-slate-700 focus:outline-none"
+                title="Click to expand"
+              >
+                <img src={expandUrl} alt="Selected image" className="w-full object-cover" />
+                <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-xs font-medium text-white opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">
+                  Click to expand
+                </span>
+              </button>
+            ) : null;
+          })()}
+
+          <button
+            type="button"
+            onClick={() => handleRegenerateImage()}
+            disabled={isGenerating || isRegeneratingImage}
+            className="flex items-center gap-2 rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isRegeneratingImage && <Loader2 className="h-3 w-3 animate-spin" />}
+            {isRegeneratingImage ? "Regenerating…" : "Regenerate all styles"}
+          </button>
         </div>
       )}
       </div>
