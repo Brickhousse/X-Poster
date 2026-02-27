@@ -8,16 +8,20 @@ import { fetchLinkPreview } from "@/app/actions/fetch-link-preview";
 import { addHistoryItem, updateHistoryItem } from "@/lib/history-storage";
 import type { GenerateFormValues } from "@/lib/generation-schema";
 
+const STYLE_LABELS = ["Cinematic / Symbolic", "Surreal / Abstract", "Bold Graphic / Typographic"] as const;
+
 interface GenerateState {
   generatedText: string | null;
   textError: string | null;
-  generatedImageUrl: string | null;
-  imageError: string | null;
+  imageUrls: [string | null, string | null, string | null];
+  imageErrors: [string | null, string | null, string | null];
+  selectedImageIndex: 0 | 1 | 2;
+  styleLabels: typeof STYLE_LABELS;
   missingKey: boolean;
   isGenerating: boolean;
   isRegeneratingImage: boolean;
   whyItWorks: string;
-  lastImagePrompt: string;
+  lastImagePrompts: [string, string, string] | null;
   isPosting: boolean;
   postSuccess: { tweetUrl: string } | null;
   postError: string | null;
@@ -32,6 +36,7 @@ interface GenerateState {
   setCharLimit: (v: number) => void;
   setMissingKey: (v: boolean) => void;
   setSelectedImage: (v: "generated" | "link" | "none") => void;
+  setSelectedImageIndex: (v: 0 | 1 | 2) => void;
   onSubmit: (values: GenerateFormValues) => Promise<void>;
   handleApproveAndPost: () => Promise<void>;
   handleSchedule: (scheduledFor: string) => void;
@@ -46,13 +51,14 @@ const GenerateContext = createContext<GenerateState | null>(null);
 export function GenerateProvider({ children }: { children: ReactNode }) {
   const [generatedText, setGeneratedText] = useState<string | null>(null);
   const [textError, setTextError] = useState<string | null>(null);
-  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
-  const [imageError, setImageError] = useState<string | null>(null);
+  const [imageUrls, setImageUrls] = useState<[string | null, string | null, string | null]>([null, null, null]);
+  const [imageErrors, setImageErrors] = useState<[string | null, string | null, string | null]>([null, null, null]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<0 | 1 | 2>(0);
   const [missingKey, setMissingKey] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
   const [whyItWorks, setWhyItWorks] = useState("");
-  const [lastImagePrompt, setLastImagePrompt] = useState("");
+  const [lastImagePrompts, setLastImagePrompts] = useState<[string, string, string] | null>(null);
   const [isPosting, setIsPosting] = useState(false);
   const [postSuccess, setPostSuccess] = useState<{ tweetUrl: string } | null>(null);
   const [postError, setPostError] = useState<string | null>(null);
@@ -68,15 +74,16 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   const prefill = ({ prompt, text, imageUrl, imagePrompt }: { prompt?: string; text?: string; imageUrl?: string; imagePrompt?: string }) => {
     if (prompt) setLastPrompt(prompt);
     if (text) { setGeneratedText(text); setEditedText(text); }
-    if (imageUrl) setGeneratedImageUrl(imageUrl);
-    if (imagePrompt) setLastImagePrompt(imagePrompt);
+    if (imageUrl) setImageUrls([imageUrl, null, null]);
+    if (imagePrompt) setLastImagePrompts([imagePrompt, imagePrompt, imagePrompt]);
   };
 
   const onSubmit = async (values: GenerateFormValues) => {
     setGeneratedText(null);
     setTextError(null);
-    setGeneratedImageUrl(null);
-    setImageError(null);
+    setImageUrls([null, null, null]);
+    setImageErrors([null, null, null]);
+    setSelectedImageIndex(0);
     setMissingKey(false);
     setLinkPreviewImageUrl(null);
     setSelectedImage("generated");
@@ -90,18 +97,18 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       const textResult = await generateText(values.prompt);
 
       let resolvedText: string | null = null;
-      let imagePrompt = values.prompt;
+      let imagePrompts: [string, string, string] = [values.prompt, values.prompt, values.prompt];
 
       if ("error" in textResult) {
         setTextError(textResult.error);
         if (textResult.error.includes("API key not set")) setMissingKey(true);
       } else {
         resolvedText = textResult.text;
-        imagePrompt = textResult.imagePrompt;
+        imagePrompts = textResult.imagePrompts;
         setGeneratedText(textResult.text);
         setEditedText(textResult.text);
         setWhyItWorks(textResult.whyItWorks);
-        setLastImagePrompt(textResult.imagePrompt);
+        setLastImagePrompts(textResult.imagePrompts);
 
         const urlMatch = textResult.text.match(/https?:\/\/[^\s\]()]+/);
         if (urlMatch) {
@@ -113,24 +120,33 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const imageResult = await generateImage(imagePrompt);
-      const resolvedImageUrl = "error" in imageResult ? null : imageResult.url;
+      const [r1, r2, r3] = await Promise.all([
+        generateImage(imagePrompts[0]),
+        generateImage(imagePrompts[1]),
+        generateImage(imagePrompts[2]),
+      ]);
 
-      if ("error" in imageResult) {
-        setImageError(imageResult.error);
-      } else {
-        setGeneratedImageUrl(imageResult.url);
-      }
+      setImageUrls([
+        "error" in r1 ? null : r1.url,
+        "error" in r2 ? null : r2.url,
+        "error" in r3 ? null : r3.url,
+      ]);
+      setImageErrors([
+        "error" in r1 ? r1.error : null,
+        "error" in r2 ? r2.error : null,
+        "error" in r3 ? r3.error : null,
+      ]);
 
       if (resolvedText) {
         const id = crypto.randomUUID();
         currentHistoryId.current = id;
+        const firstUrl = "error" in r1 ? null : r1.url;
         addHistoryItem({
           id,
           prompt: values.prompt,
-          imagePrompt,
+          imagePrompt: imagePrompts[0],
           editedText: resolvedText,
-          imageUrl: resolvedImageUrl,
+          imageUrl: firstUrl,
           status: "draft",
           createdAt: new Date().toISOString(),
         });
@@ -146,7 +162,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     setIsPosting(true);
     try {
       const imageToPost =
-        selectedImage === "generated" ? generatedImageUrl :
+        selectedImage === "generated" ? imageUrls[selectedImageIndex] :
         selectedImage === "link" ? linkPreviewImageUrl :
         null;
       const result = await postTweet(editedText, imageToPost ?? undefined);
@@ -183,7 +199,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
         id,
         prompt: lastPrompt,
         editedText,
-        imageUrl: generatedImageUrl,
+        imageUrl: imageUrls[selectedImageIndex],
         status: "scheduled",
         createdAt: new Date().toISOString(),
         scheduledFor: isoScheduled,
@@ -197,10 +213,11 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     setGeneratedText(null);
     setEditedText("");
     setTextError(null);
-    setGeneratedImageUrl(null);
-    setImageError(null);
+    setImageUrls([null, null, null]);
+    setImageErrors([null, null, null]);
+    setSelectedImageIndex(0);
     setLastPrompt("");
-    setLastImagePrompt("");
+    setLastImagePrompts(null);
     setWhyItWorks("");
     setMissingKey(false);
     setPostSuccess(null);
@@ -213,16 +230,26 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
 
   const handleRegenerateImage = async () => {
     setIsRegeneratingImage(true);
-    setImageError(null);
-    setGeneratedImageUrl(null);
+    setImageErrors([null, null, null]);
+    setImageUrls([null, null, null]);
+    const prompts: [string, string, string] = lastImagePrompts ?? [editedText || lastPrompt, editedText || lastPrompt, editedText || lastPrompt];
     try {
-      const result = await generateImage(lastImagePrompt || editedText || lastPrompt);
-      if ("error" in result) {
-        setImageError(result.error);
-        if (result.error.includes("API key not set")) setMissingKey(true);
-      } else {
-        setGeneratedImageUrl(result.url);
-      }
+      const [r1, r2, r3] = await Promise.all([
+        generateImage(prompts[0]),
+        generateImage(prompts[1]),
+        generateImage(prompts[2]),
+      ]);
+      setImageUrls([
+        "error" in r1 ? null : r1.url,
+        "error" in r2 ? null : r2.url,
+        "error" in r3 ? null : r3.url,
+      ]);
+      setImageErrors([
+        "error" in r1 ? r1.error : null,
+        "error" in r2 ? r2.error : null,
+        "error" in r3 ? r3.error : null,
+      ]);
+      if ("error" in r1 && r1.error.includes("API key not set")) setMissingKey(true);
     } finally {
       setIsRegeneratingImage(false);
     }
@@ -230,12 +257,12 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
 
   return (
     <GenerateContext.Provider value={{
-      generatedText, textError, generatedImageUrl, imageError, missingKey,
-      isGenerating, isRegeneratingImage, whyItWorks, lastImagePrompt,
+      generatedText, textError, imageUrls, imageErrors, selectedImageIndex, styleLabels: STYLE_LABELS,
+      missingKey, isGenerating, isRegeneratingImage, whyItWorks, lastImagePrompts,
       isPosting, postSuccess, postError, scheduleSuccess,
       lastPrompt, editedText, charLimit,
       linkPreviewImageUrl, isFetchingLinkPreview, selectedImage,
-      setEditedText, setCharLimit, setMissingKey, setSelectedImage,
+      setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedImageIndex,
       onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage,
       prefill,
     }}>

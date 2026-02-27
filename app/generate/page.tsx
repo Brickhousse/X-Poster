@@ -11,17 +11,18 @@ import { useGenerate } from "@/lib/generate-context";
 
 export default function GeneratePage() {
   const {
-    generatedText, textError, generatedImageUrl, imageError, missingKey,
-    isGenerating, isRegeneratingImage, whyItWorks,
+    generatedText, textError, imageUrls, imageErrors, selectedImageIndex, styleLabels,
+    missingKey, isGenerating, isRegeneratingImage, whyItWorks,
     isPosting, postSuccess, postError, scheduleSuccess,
     editedText, charLimit,
     linkPreviewImageUrl, isFetchingLinkPreview, selectedImage,
-    setEditedText, setCharLimit, setMissingKey, setSelectedImage,
+    setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedImageIndex,
     onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage,
     prefill,
   } = useGenerate();
 
   const [showImageModal, setShowImageModal] = useState(false);
+  const [modalImageUrl, setModalImageUrl] = useState<string | null>(null);
   const [showSchedule, setShowSchedule] = useState(false);
   const [scheduledFor, setScheduledFor] = useState("");
 
@@ -63,6 +64,10 @@ export default function GeneratePage() {
     editedText.length >= charLimit * 0.9 ? "text-amber-400" :
     "text-slate-500";
 
+  const activeImageUrl = selectedImage === "generated" ? imageUrls[selectedImageIndex] : selectedImage === "link" ? linkPreviewImageUrl : null;
+  const anyImageUrl = imageUrls[0] ?? imageUrls[1] ?? imageUrls[2];
+  const anyImageVisible = imageUrls.some(Boolean) || imageErrors.some(Boolean) || isGenerating || isRegeneratingImage;
+
   return (
     <div className="grid grid-cols-2 gap-8 items-start max-w-5xl">
       {/* LEFT COLUMN */}
@@ -95,7 +100,7 @@ export default function GeneratePage() {
             {isGenerating && <Loader2 className="h-4 w-4 animate-spin" />}
             {isGenerating ? "Generating…" : "Generate"}
           </button>
-          {(editedText || generatedImageUrl || textError || imageError) && (
+          {(editedText || anyImageUrl || textError || imageErrors.some(Boolean)) && (
             <button
               type="button"
               onClick={handleDiscard}
@@ -143,7 +148,7 @@ export default function GeneratePage() {
       )}
 
       {/* Actions row — shown once generation completes */}
-      {(generatedText !== null || textError || generatedImageUrl !== null || imageError) && !isGenerating && (
+      {(generatedText !== null || textError || anyImageUrl || imageErrors.some(Boolean)) && !isGenerating && (
         <div className="mt-6 space-y-3">
           <div className="flex items-center gap-3">
             <button
@@ -232,24 +237,63 @@ export default function GeneratePage() {
         </div>
       )}
 
-      {/* Image result */}
-      {(isGenerating || isRegeneratingImage || generatedImageUrl !== null || imageError) && (
-        <div className="mt-4 space-y-2">
-          <h2 className="text-sm font-medium text-slate-300">Generated image</h2>
-          {(isGenerating || isRegeneratingImage) && !generatedImageUrl && !imageError ? (
-            <div className="h-64 w-full animate-pulse rounded-md bg-slate-800" />
-          ) : imageError ? (
-            <p className="text-sm text-red-400">{imageError}</p>
-          ) : (
+      {/* Image style selector — 3-card grid */}
+      {anyImageVisible && (
+        <div className="mt-6 space-y-3">
+          <h2 className="text-sm font-medium text-slate-300">Choose an image style</h2>
+          <div className="grid grid-cols-3 gap-2">
+            {([0, 1, 2] as const).map((idx) => {
+              const url = imageUrls[idx];
+              const err = imageErrors[idx];
+              const loading = (isGenerating || isRegeneratingImage) && !url && !err;
+              const isSelected = selectedImage === "generated" && selectedImageIndex === idx;
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setSelectedImageIndex(idx);
+                    setSelectedImage("generated");
+                  }}
+                  disabled={loading || !!err}
+                  className={`rounded-md border p-1.5 text-left transition-colors focus:outline-none disabled:cursor-default ${
+                    isSelected
+                      ? "border-slate-400 ring-2 ring-slate-400"
+                      : "border-slate-700 hover:border-slate-500"
+                  } ${err ? "opacity-50" : ""}`}
+                >
+                  {loading ? (
+                    <div className="h-20 w-full animate-pulse rounded bg-slate-800" />
+                  ) : err ? (
+                    <div className="flex h-20 w-full items-center justify-center rounded bg-slate-800">
+                      <span className="text-xs text-red-400 text-center px-1">Failed</span>
+                    </div>
+                  ) : url ? (
+                    <img
+                      src={url}
+                      alt={styleLabels[idx]}
+                      className="h-20 w-full rounded object-cover"
+                    />
+                  ) : (
+                    <div className="h-20 w-full rounded bg-slate-800" />
+                  )}
+                  <p className="mt-1 text-center text-xs text-slate-400 leading-tight">{styleLabels[idx]}</p>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Expand selected image */}
+          {imageUrls[selectedImageIndex] && selectedImage === "generated" && (
             <button
               type="button"
-              onClick={() => setShowImageModal(true)}
+              onClick={() => { setModalImageUrl(imageUrls[selectedImageIndex]); setShowImageModal(true); }}
               className="group relative block w-full overflow-hidden rounded-md border border-slate-700 focus:outline-none"
               title="Click to expand"
             >
               <img
-                src={generatedImageUrl!}
-                alt="Generated"
+                src={imageUrls[selectedImageIndex]!}
+                alt="Selected style"
                 className="w-full object-cover"
               />
               <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-xs font-medium text-white opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">
@@ -257,6 +301,7 @@ export default function GeneratePage() {
               </span>
             </button>
           )}
+
           <button
             type="button"
             onClick={handleRegenerateImage}
@@ -264,7 +309,7 @@ export default function GeneratePage() {
             className="flex items-center gap-2 rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isRegeneratingImage && <Loader2 className="h-3 w-3 animate-spin" />}
-            {isRegeneratingImage ? "Regenerating…" : "Regenerate image"}
+            {isRegeneratingImage ? "Regenerating…" : "Regenerate all styles"}
           </button>
         </div>
       )}
@@ -284,9 +329,9 @@ export default function GeneratePage() {
                   : "border-slate-700 hover:border-slate-500"
               }`}
             >
-              {generatedImageUrl ? (
+              {imageUrls[selectedImageIndex] ? (
                 <img
-                  src={generatedImageUrl}
+                  src={imageUrls[selectedImageIndex]!}
                   alt="Generated"
                   className="h-28 w-full rounded object-cover"
                 />
@@ -377,26 +422,26 @@ export default function GeneratePage() {
 
           {/* Image — 3 states */}
           <div className="mt-3">
-            {(isGenerating || isRegeneratingImage) && !generatedImageUrl ? (
+            {(isGenerating || isRegeneratingImage) && !activeImageUrl ? (
               <div className="h-48 w-full animate-pulse rounded-xl bg-slate-800" />
             ) : selectedImage === "none" ? null
             : selectedImage === "link" && linkPreviewImageUrl ? (
               <button
                 type="button"
-                onClick={() => setShowImageModal(true)}
+                onClick={() => { setModalImageUrl(linkPreviewImageUrl); setShowImageModal(true); }}
                 className="block w-full overflow-hidden rounded-xl border border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500"
                 title="Click to expand"
               >
                 <img src={linkPreviewImageUrl} alt="Link preview image" className="w-full object-cover" />
               </button>
-            ) : generatedImageUrl ? (
+            ) : activeImageUrl ? (
               <button
                 type="button"
-                onClick={() => setShowImageModal(true)}
+                onClick={() => { setModalImageUrl(activeImageUrl); setShowImageModal(true); }}
                 className="block w-full overflow-hidden rounded-xl border border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500"
                 title="Click to expand"
               >
-                <img src={generatedImageUrl} alt="Post image" className="w-full object-cover" />
+                <img src={activeImageUrl} alt="Post image" className="w-full object-cover" />
               </button>
             ) : null}
           </div>
@@ -428,7 +473,7 @@ export default function GeneratePage() {
       </div>
 
       {/* Full-size image modal */}
-      {showImageModal && (selectedImage === "link" ? linkPreviewImageUrl : generatedImageUrl) && (
+      {showImageModal && modalImageUrl && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
           onClick={() => setShowImageModal(false)}
@@ -443,7 +488,7 @@ export default function GeneratePage() {
               ✕
             </button>
             <img
-              src={(selectedImage === "link" ? linkPreviewImageUrl : generatedImageUrl)!}
+              src={modalImageUrl}
               alt="Full size image"
               className="max-h-[90vh] w-auto rounded-md object-contain"
             />
