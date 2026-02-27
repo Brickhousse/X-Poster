@@ -11,4 +11,5 @@ export interface HistoryItem {
   tweetUrl?: string;
   postedAt?: string; // ISO 8601
   scheduledFor?: string; // ISO 8601
+  pinned?: boolean; // undefined = false (legacy rows before column existed)
 }

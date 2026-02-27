@@ -8,6 +8,8 @@ type AddInput = Omit<HistoryItem, "id">;
 type AddResult = { id: string } | { error: string };
 type MutateResult = { ok: true } | { error: string };
 
+const HISTORY_LIMIT = 15;
+
 function dbRowToHistoryItem(row: Record<string, unknown>): HistoryItem {
   return {
     id: row.id as string,
@@ -20,6 +22,7 @@ function dbRowToHistoryItem(row: Record<string, unknown>): HistoryItem {
     tweetUrl: (row.tweet_url as string | null) ?? undefined,
     postedAt: (row.posted_at as string | null) ?? undefined,
     scheduledFor: (row.scheduled_for as string | null) ?? undefined,
+    pinned: (row.pinned as boolean | null) ?? false,
   };
 }
 
@@ -46,6 +49,24 @@ export async function addHistoryItem(item: AddInput): Promise<AddResult> {
     .single();
 
   if (error || !data) return { error: "Failed to save history item." };
+
+  // Auto-trim: keep only the most recent HISTORY_LIMIT non-pinned items
+  const { data: nonPinned } = await supabase
+    .from("posts")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("pinned", false)
+    .order("created_at", { ascending: false });
+
+  if (nonPinned && nonPinned.length > HISTORY_LIMIT) {
+    const idsToDelete = nonPinned.slice(HISTORY_LIMIT).map((r) => (r as Record<string, unknown>).id);
+    await supabase
+      .from("posts")
+      .delete()
+      .in("id", idsToDelete)
+      .eq("user_id", userId);
+  }
+
   return { id: data.id as string };
 }
 
@@ -64,6 +85,7 @@ export async function updateHistoryItem(
   if (patch.scheduledFor !== undefined) updateData.scheduled_for = patch.scheduledFor;
   if (patch.imageUrl !== undefined) updateData.image_url = patch.imageUrl;
   if (patch.imagePrompt !== undefined) updateData.image_prompt = patch.imagePrompt;
+  if (patch.pinned !== undefined) updateData.pinned = patch.pinned;
 
   const supabase = getSupabaseClient();
   const { error } = await supabase
