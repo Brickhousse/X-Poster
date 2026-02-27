@@ -11,6 +11,7 @@ export async function fetchLinkPreview(url: string): Promise<{ imageUrl: string 
       headers: { "User-Agent": "Twitterbot/1.0" },
       signal: AbortSignal.timeout(5000),
     });
+    if (!res.ok) return { error: `HTTP ${res.status}` };
     const html = await res.text();
     // Try both attribute orders for og:image
     const match =

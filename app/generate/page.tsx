@@ -19,7 +19,7 @@ export default function GeneratePage() {
     noveltyMode, setNoveltyMode,
     setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedImageIndex,
     onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage,
-    prefill,
+    clearLinkPreview, prefill,
   } = useGenerate();
 
   const [showImageModal, setShowImageModal] = useState(false);
@@ -318,7 +318,7 @@ export default function GeneratePage() {
                 {isFetchingLinkPreview && !linkPreviewImageUrl ? (
                   <div className="h-20 w-full animate-pulse rounded bg-slate-800" />
                 ) : linkPreviewImageUrl ? (
-                  <img src={linkPreviewImageUrl} alt="Link preview" className="h-20 w-full rounded object-cover" />
+                  <img src={linkPreviewImageUrl} alt="Link preview" className="h-20 w-full rounded object-cover" onError={clearLinkPreview} />
                 ) : (
                   <div className="h-20 w-full rounded bg-slate-800" />
                 )}

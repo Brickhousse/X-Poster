@@ -44,6 +44,7 @@ interface GenerateState {
   handleSchedule: (scheduledFor: string) => void;
   handleDiscard: () => void;
   handleRegenerateImage: (overridePrompts?: [string, string, string]) => Promise<void>;
+  clearLinkPreview: () => void;
   // allow history page to prefill state
   prefill: (opts: { prompt?: string; text?: string; imageUrls?: [string | null, string | null, string | null]; imagePrompt?: string }) => void;
 }
@@ -261,6 +262,11 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     currentHistoryId.current = null;
   };
 
+  const clearLinkPreview = () => {
+    setLinkPreviewImageUrl(null);
+    setSelectedImage((prev) => prev === "link" ? "generated" : prev as "generated" | "none");
+  };
+
   const handleRegenerateImage = async (overridePrompts?: [string, string, string]) => {
     setIsRegeneratingImage(true);
     setImageErrors([null, null, null]);
@@ -298,7 +304,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       noveltyMode, setNoveltyMode,
       setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedImageIndex,
       onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage,
-      prefill,
+      clearLinkPreview, prefill,
     }}>
       {children}
     </GenerateContext.Provider>
