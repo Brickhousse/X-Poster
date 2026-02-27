@@ -27,7 +27,7 @@ RULES FOR THE X POST
 - **Hashtags are ALWAYS the very last line** — nothing comes after them. Format: 2–3 specific, searchable hashtags on a single line.
 
 RULES FOR THE THREE IMAGE PROMPTS
-All three must be detailed, ready-to-paste, premium (8K, modern, dramatic lighting), boldly symbolic/metaphorical, conceptually rich, and attention-grabbing. No realistic sharp-focus faces or people. Add subtle elegant text overlay of the hook phrase. Never plain, generic or low-quality.
+All three must be detailed, ready-to-paste, premium (8K, modern, dramatic lighting), boldly symbolic/metaphorical, conceptually rich, and attention-grabbing. No realistic sharp-focus faces or people. Add text overlay's for impact, only if value added, of the hook phrase. Never plain, generic or low-quality.
 
 **Image Prompt 1 — Cinematic / Symbolic**
 Cinematic photography feel, 16:9, golden-hour/dramatic lighting, photorealistic textures, strong visual metaphor.
