@@ -78,6 +78,7 @@ export default function GeneratePage() {
   const activeImageUrl = selectedImage === "generated" ? imageUrls[selectedImageIndex] : selectedImage === "link" ? linkPreviewImageUrl : null;
   const anyImageUrl = imageUrls[0] ?? imageUrls[1] ?? imageUrls[2];
   const anyImageVisible = imageUrls.some(Boolean) || imageErrors.some(Boolean) || isGenerating || isRegeneratingImage;
+  const showLinkCard = !isGenerating && (!!linkPreviewImageUrl || isFetchingLinkPreview);
 
   return (
     <div className="grid grid-cols-2 gap-8 items-start max-w-5xl">
@@ -263,8 +264,8 @@ export default function GeneratePage() {
       {/* Image style selector — 3-card grid */}
       {anyImageVisible && (
         <div className="mt-6 space-y-3">
-          <h2 className="text-sm font-medium text-slate-300">Choose an image style</h2>
-          <div className="grid grid-cols-3 gap-2">
+          <h2 className="text-sm font-medium text-slate-300">Choose an image</h2>
+          <div className={`grid gap-2 ${showLinkCard ? "grid-cols-4" : "grid-cols-3"}`}>
             {([0, 1, 2] as const).map((idx) => {
               const url = imageUrls[idx];
               const err = imageErrors[idx];
@@ -304,26 +305,48 @@ export default function GeneratePage() {
                 </button>
               );
             })}
+            {showLinkCard && (
+              <button
+                type="button"
+                onClick={() => setSelectedImage("link")}
+                className={`rounded-md border p-1.5 text-left transition-colors focus:outline-none ${
+                  selectedImage === "link"
+                    ? "border-slate-400 ring-2 ring-slate-400"
+                    : "border-slate-700 hover:border-slate-500"
+                }`}
+              >
+                {isFetchingLinkPreview && !linkPreviewImageUrl ? (
+                  <div className="h-20 w-full animate-pulse rounded bg-slate-800" />
+                ) : linkPreviewImageUrl ? (
+                  <img src={linkPreviewImageUrl} alt="Link preview" className="h-20 w-full rounded object-cover" />
+                ) : (
+                  <div className="h-20 w-full rounded bg-slate-800" />
+                )}
+                <p className="mt-1 text-center text-xs text-slate-400 leading-tight">Link preview</p>
+              </button>
+            )}
           </div>
 
           {/* Expand selected image */}
-          {imageUrls[selectedImageIndex] && selectedImage === "generated" && (
-            <button
-              type="button"
-              onClick={() => { setModalImageUrl(imageUrls[selectedImageIndex]); setShowImageModal(true); }}
-              className="group relative block w-full overflow-hidden rounded-md border border-slate-700 focus:outline-none"
-              title="Click to expand"
-            >
-              <img
-                src={imageUrls[selectedImageIndex]!}
-                alt="Selected style"
-                className="w-full object-cover"
-              />
-              <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-xs font-medium text-white opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">
-                Click to expand
-              </span>
-            </button>
-          )}
+          {(() => {
+            const expandUrl =
+              selectedImage === "generated" ? imageUrls[selectedImageIndex] :
+              selectedImage === "link" ? linkPreviewImageUrl :
+              null;
+            return expandUrl ? (
+              <button
+                type="button"
+                onClick={() => { setModalImageUrl(expandUrl); setShowImageModal(true); }}
+                className="group relative block w-full overflow-hidden rounded-md border border-slate-700 focus:outline-none"
+                title="Click to expand"
+              >
+                <img src={expandUrl} alt="Selected image" className="w-full object-cover" />
+                <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-xs font-medium text-white opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">
+                  Click to expand
+                </span>
+              </button>
+            ) : null;
+          })()}
 
           <button
             type="button"
@@ -334,70 +357,18 @@ export default function GeneratePage() {
             {isRegeneratingImage && <Loader2 className="h-3 w-3 animate-spin" />}
             {isRegeneratingImage ? "Regenerating…" : "Regenerate all styles"}
           </button>
-        </div>
-      )}
-
-      {/* Image selection UI — shown when a link preview image is available */}
-      {(linkPreviewImageUrl || isFetchingLinkPreview) && !isGenerating && generatedText !== null && (
-        <div className="mt-6 space-y-3">
-          <h2 className="text-sm font-medium text-slate-300">Choose image to post</h2>
-          <div className="flex gap-3">
-            {/* Generated image card */}
-            <button
-              type="button"
-              onClick={() => setSelectedImage("generated")}
-              className={`flex-1 rounded-md border p-2 text-left transition-colors focus:outline-none ${
-                selectedImage === "generated"
-                  ? "border-slate-400 ring-2 ring-slate-400"
-                  : "border-slate-700 hover:border-slate-500"
-              }`}
-            >
-              {imageUrls[selectedImageIndex] ? (
-                <img
-                  src={imageUrls[selectedImageIndex]!}
-                  alt="Generated"
-                  className="h-28 w-full rounded object-cover"
-                />
-              ) : (
-                <div className="h-28 w-full animate-pulse rounded bg-slate-800" />
-              )}
-              <p className="mt-1.5 text-center text-xs text-slate-400">Generated image</p>
-            </button>
-
-            {/* Link preview card */}
-            <button
-              type="button"
-              onClick={() => setSelectedImage("link")}
-              className={`flex-1 rounded-md border p-2 text-left transition-colors focus:outline-none ${
-                selectedImage === "link"
-                  ? "border-slate-400 ring-2 ring-slate-400"
-                  : "border-slate-700 hover:border-slate-500"
-              }`}
-            >
-              {isFetchingLinkPreview && !linkPreviewImageUrl ? (
-                <div className="h-28 w-full animate-pulse rounded bg-slate-800" />
-              ) : linkPreviewImageUrl ? (
-                <img
-                  src={linkPreviewImageUrl}
-                  alt="Link preview"
-                  className="h-28 w-full rounded object-cover"
-                />
-              ) : null}
-              <p className="mt-1.5 text-center text-xs text-slate-400">Link preview</p>
-            </button>
-          </div>
-
-          {/* No image option */}
-          <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-500 hover:text-slate-300">
-            <input
-              type="radio"
-              name="imageChoice"
-              checked={selectedImage === "none"}
-              onChange={() => setSelectedImage("none")}
-              className="accent-slate-400"
-            />
-            No image
-          </label>
+          {showLinkCard && (
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-500 hover:text-slate-300">
+              <input
+                type="radio"
+                name="imageChoice"
+                checked={selectedImage === "none"}
+                onChange={() => setSelectedImage("none")}
+                className="accent-slate-400"
+              />
+              No image
+            </label>
+          )}
         </div>
       )}
       </div>
