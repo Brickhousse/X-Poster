@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { Loader2, MessageCircle, Repeat2, Heart, BarChart2, Shuffle, Upload } from "lucide-react";
+import { Loader2, MessageCircle, Repeat2, Heart, BarChart2, Shuffle, Upload, RotateCcw } from "lucide-react";
 import { uploadCustomImage } from "@/app/actions/upload-custom-image";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { generateSchema, type GenerateFormValues } from "@/lib/generation-schema";
@@ -13,14 +13,14 @@ import { useGenerate } from "@/lib/generate-context";
 export default function GeneratePage() {
   const {
     generatedText, textError, imageUrls, imageErrors, selectedImageIndex, styleLabels,
-    missingKey, isGenerating, isRegeneratingImage, whyItWorks,
+    missingKey, isGenerating, isRegeneratingImage, isRegeneratingEach, whyItWorks,
     isPosting, postSuccess, postError, scheduleSuccess,
     editedText, charLimit,
     linkPreviewImageUrl, isFetchingLinkPreview, selectedImage,
     noveltyMode, setNoveltyMode,
     setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedImageIndex,
     customImageUrl, setCustomImageUrl,
-    onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage,
+    onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage, handleRegenerateOneImage,
     clearLinkPreview, prefill,
   } = useGenerate();
 
@@ -330,7 +330,7 @@ export default function GeneratePage() {
             {([0, 1, 2] as const).map((idx) => {
               const url = imageUrls[idx];
               const err = imageErrors[idx];
-              const loading = (isGenerating || isRegeneratingImage) && !url && !err;
+              const loading = ((isGenerating || isRegeneratingImage) && !url && !err) || isRegeneratingEach[idx];
               const isSelected = selectedImage === "generated" && selectedImageIndex === idx;
               return (
                 <button
@@ -362,7 +362,18 @@ export default function GeneratePage() {
                   ) : (
                     <div className="h-20 w-full rounded bg-slate-800" />
                   )}
-                  <p className="mt-1 text-center text-xs text-slate-400 leading-tight">{styleLabels[idx]}</p>
+                  <div className="mt-1 flex items-center justify-between px-0.5">
+                    <p className="text-xs text-slate-400 leading-tight">{styleLabels[idx]}</p>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleRegenerateOneImage(idx); }}
+                      disabled={loading || isGenerating || isRegeneratingImage || isRegeneratingEach[idx]}
+                      className="text-slate-600 hover:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none"
+                      title={`Regenerate ${styleLabels[idx]}`}
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                    </button>
+                  </div>
                 </button>
               );
             })}
@@ -466,15 +477,6 @@ export default function GeneratePage() {
             ) : null;
           })()}
 
-          <button
-            type="button"
-            onClick={() => handleRegenerateImage()}
-            disabled={isGenerating || isRegeneratingImage}
-            className="flex items-center gap-2 rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isRegeneratingImage && <Loader2 className="h-3 w-3 animate-spin" />}
-            {isRegeneratingImage ? "Regenerating…" : "Regenerate all styles"}
-          </button>
         </div>
       )}
       </div>

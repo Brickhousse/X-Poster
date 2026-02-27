@@ -22,6 +22,7 @@ interface GenerateState {
   isRegeneratingImage: boolean;
   whyItWorks: string;
   lastImagePrompts: [string, string, string] | null;
+  isRegeneratingEach: [boolean, boolean, boolean];
   isPosting: boolean;
   postSuccess: { tweetUrl: string } | null;
   postError: string | null;
@@ -46,6 +47,7 @@ interface GenerateState {
   handleSchedule: (scheduledFor: string) => void;
   handleDiscard: () => void;
   handleRegenerateImage: (overridePrompts?: [string, string, string]) => Promise<void>;
+  handleRegenerateOneImage: (idx: 0 | 1 | 2) => Promise<void>;
   clearLinkPreview: () => void;
   // allow history page to prefill state
   prefill: (opts: { prompt?: string; text?: string; imageUrls?: [string | null, string | null, string | null]; imagePrompt?: string }) => void;
@@ -62,6 +64,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   const [missingKey, setMissingKey] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
+  const [isRegeneratingEach, setIsRegeneratingEach] = useState<[boolean, boolean, boolean]>([false, false, false]);
   const [whyItWorks, setWhyItWorks] = useState("");
   const [lastImagePrompts, setLastImagePrompts] = useState<[string, string, string] | null>(null);
   const [isPosting, setIsPosting] = useState(false);
@@ -102,6 +105,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     setTextError(null);
     setImageUrls([null, null, null]);
     setImageErrors([null, null, null]);
+    setIsRegeneratingEach([false, false, false]);
     setSelectedImageIndex(0);
     setMissingKey(false);
     setLinkPreviewImageUrl(null);
@@ -258,6 +262,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     setSelectedImageIndex(0);
     setLastPrompt("");
     setLastImagePrompts(null);
+    setIsRegeneratingEach([false, false, false]);
     setWhyItWorks("");
     setMissingKey(false);
     setPostSuccess(null);
@@ -301,16 +306,39 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const handleRegenerateOneImage = async (idx: 0 | 1 | 2) => {
+    setIsRegeneratingEach((prev) => {
+      const next = [...prev] as [boolean, boolean, boolean];
+      next[idx] = true;
+      return next;
+    });
+    setImageUrls((prev) => { const n = [...prev] as typeof prev; n[idx] = null; return n; });
+    setImageErrors((prev) => { const n = [...prev] as typeof prev; n[idx] = null; return n; });
+    const prompt = lastImagePrompts?.[idx] ?? (editedText || lastPrompt);
+    try {
+      const result = await generateImage(prompt);
+      setImageUrls((prev) => { const n = [...prev] as typeof prev; n[idx] = "error" in result ? null : result.url; return n; });
+      setImageErrors((prev) => { const n = [...prev] as typeof prev; n[idx] = "error" in result ? result.error : null; return n; });
+      if ("error" in result && result.error.includes("API key not set")) setMissingKey(true);
+    } finally {
+      setIsRegeneratingEach((prev) => {
+        const next = [...prev] as [boolean, boolean, boolean];
+        next[idx] = false;
+        return next;
+      });
+    }
+  };
+
   return (
     <GenerateContext.Provider value={{
       generatedText, textError, imageUrls, imageErrors, selectedImageIndex, styleLabels: STYLE_LABELS,
-      missingKey, isGenerating, isRegeneratingImage, whyItWorks, lastImagePrompts,
+      missingKey, isGenerating, isRegeneratingImage, isRegeneratingEach, whyItWorks, lastImagePrompts,
       isPosting, postSuccess, postError, scheduleSuccess,
       lastPrompt, editedText, charLimit,
       linkPreviewImageUrl, isFetchingLinkPreview, selectedImage, customImageUrl,
       noveltyMode, setNoveltyMode,
       setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedImageIndex, setCustomImageUrl,
-      onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage,
+      onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage, handleRegenerateOneImage,
       clearLinkPreview, prefill,
     }}>
       {children}
