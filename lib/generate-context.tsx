@@ -171,6 +171,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
         if (currentHistoryId.current) {
           await updateHistoryItem(currentHistoryId.current, {
             editedText,
+            imageUrl: imageToPost ?? null,
             status: "posted",
             tweetUrl: result.tweetUrl,
             postedAt: new Date().toISOString(),
@@ -186,8 +187,13 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     if (!scheduledFor) return;
     const isoScheduled = new Date(scheduledFor).toISOString();
     if (currentHistoryId.current) {
+      const imageToSchedule =
+        selectedImage === "generated" ? imageUrls[selectedImageIndex] :
+        selectedImage === "link" ? linkPreviewImageUrl :
+        null;
       await updateHistoryItem(currentHistoryId.current, {
         editedText,
+        imageUrl: imageToSchedule ?? null,
         status: "scheduled",
         scheduledFor: isoScheduled,
       });

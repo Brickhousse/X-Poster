@@ -51,8 +51,7 @@ export default function HistoryPage() {
   }, []);
 
   const pinnedItems = items.filter((i) => i.pinned);
-  const historyItems = items.filter((i) => !i.pinned);
-  const visibleItems = tab === "favorites" ? pinnedItems : historyItems;
+  const visibleItems = tab === "favorites" ? pinnedItems : items;
   const selectedItem = items.find((i) => i.id === selectedId) ?? null;
 
   // Clear selection when switching tabs if the selected item isn't in the new tab's list
@@ -222,6 +221,15 @@ export default function HistoryPage() {
                     </button>
                     <button
                       type="button"
+                      onClick={() => handleUseAgain(item)}
+                      className="text-slate-500 hover:text-slate-300 focus:outline-none"
+                      aria-label="Use again"
+                      title="Use again"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handleDelete(item.id)}
                       className="text-slate-600 hover:text-red-400 focus:outline-none"
                       aria-label="Delete item"
@@ -245,6 +253,57 @@ export default function HistoryPage() {
           ) : (
             <div className="space-y-3">
               <p className="text-xs font-medium uppercase tracking-widest text-slate-500">Preview</p>
+
+              {/* Action buttons */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleUseAgain(selectedItem)}
+                  className="flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100 focus:outline-none"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Use Again
+                </button>
+
+                {selectedItem.tweetUrl && (
+                  <a
+                    href={selectedItem.tweetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    View on X
+                  </a>
+                )}
+
+                {isOverdue(selectedItem) && (
+                  <button
+                    type="button"
+                    onClick={() => handlePostNow(selectedItem)}
+                    disabled={postingId === selectedItem.id}
+                    className="flex items-center gap-1.5 rounded-md bg-amber-900/50 px-3 py-1.5 text-sm font-medium text-amber-400 hover:bg-amber-900/80 focus:outline-none disabled:opacity-50"
+                  >
+                    {postingId === selectedItem.id && (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    )}
+                    {postingId === selectedItem.id ? "Posting…" : "Post now"}
+                  </button>
+                )}
+
+                {postErrors[selectedItem.id] && (
+                  <p className="w-full text-xs text-red-400">{postErrors[selectedItem.id]}</p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => handleDelete(selectedItem.id)}
+                  className="flex items-center gap-1.5 rounded-md border border-red-900/50 px-3 py-1.5 text-sm font-medium text-red-400 hover:border-red-800 hover:text-red-300 focus:outline-none"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete
+                </button>
+              </div>
 
               {/* X post card */}
               <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
@@ -314,56 +373,6 @@ export default function HistoryPage() {
                 </div>
               </div>
 
-              {/* Action buttons */}
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleUseAgain(selectedItem)}
-                  className="flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100 focus:outline-none"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  Use Again
-                </button>
-
-                {selectedItem.tweetUrl && (
-                  <a
-                    href={selectedItem.tweetUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    View on X
-                  </a>
-                )}
-
-                {isOverdue(selectedItem) && (
-                  <button
-                    type="button"
-                    onClick={() => handlePostNow(selectedItem)}
-                    disabled={postingId === selectedItem.id}
-                    className="flex items-center gap-1.5 rounded-md bg-amber-900/50 px-3 py-1.5 text-sm font-medium text-amber-400 hover:bg-amber-900/80 focus:outline-none disabled:opacity-50"
-                  >
-                    {postingId === selectedItem.id && (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    )}
-                    {postingId === selectedItem.id ? "Posting…" : "Post now"}
-                  </button>
-                )}
-
-                {postErrors[selectedItem.id] && (
-                  <p className="w-full text-xs text-red-400">{postErrors[selectedItem.id]}</p>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => handleDelete(selectedItem.id)}
-                  className="flex items-center gap-1.5 rounded-md border border-red-900/50 px-3 py-1.5 text-sm font-medium text-red-400 hover:border-red-800 hover:text-red-300 focus:outline-none"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Delete
-                </button>
-              </div>
             </div>
           )}
         </div>
