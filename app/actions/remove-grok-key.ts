@@ -1,12 +1,17 @@
 "use server";
 
-import { cookies } from "next/headers";
-import { getIronSession } from "iron-session";
-import { sessionOptions, type SessionData } from "@/lib/session";
+import { auth } from "@clerk/nextjs/server";
+import { getSupabaseClient } from "@/lib/supabase";
 
-export async function removeGrokKey(): Promise<{ ok: true }> {
-  const session = await getIronSession<SessionData>(await cookies(), sessionOptions);
-  session.grokApiKey = undefined;
-  await session.save();
+export async function removeGrokKey(): Promise<{ ok: true } | { error: string }> {
+  const { userId } = await auth();
+  if (!userId) return { error: "Not authenticated." };
+
+  const supabase = getSupabaseClient();
+  await supabase
+    .from("user_credentials")
+    .update({ grok_api_key: null, updated_at: new Date().toISOString() })
+    .eq("user_id", userId);
+
   return { ok: true };
 }

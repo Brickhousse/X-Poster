@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2, ExternalLink, RefreshCw, Loader2 } from "lucide-react";
-import { loadHistory, deleteHistoryItem, updateHistoryItem } from "@/lib/history-storage";
+import { getHistory, deleteHistoryItem, updateHistoryItem } from "@/app/actions/history";
 import { postTweet } from "@/app/actions/post-tweet";
 import type { HistoryItem, HistoryItemStatus } from "@/lib/history-schema";
 
@@ -33,11 +33,15 @@ function isOverdue(item: HistoryItem): boolean {
 export default function HistoryPage() {
   const router = useRouter();
   const [items, setItems] = useState<HistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [postingId, setPostingId] = useState<string | null>(null);
   const [postErrors, setPostErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    setItems(loadHistory());
+    getHistory().then((data) => {
+      setItems(data);
+      setLoading(false);
+    });
   }, []);
 
   const handlePostNow = async (item: HistoryItem) => {
@@ -48,7 +52,7 @@ export default function HistoryPage() {
     if ("error" in result) {
       setPostErrors((prev) => ({ ...prev, [item.id]: result.error }));
     } else {
-      updateHistoryItem(item.id, {
+      await updateHistoryItem(item.id, {
         status: "posted",
         tweetUrl: result.tweetUrl,
         postedAt: new Date().toISOString(),
@@ -71,10 +75,23 @@ export default function HistoryPage() {
     router.push(`/generate?${params.toString()}`);
   };
 
-  const handleDelete = (id: string) => {
-    deleteHistoryItem(id);
+  const handleDelete = async (id: string) => {
+    await deleteHistoryItem(id);
     setItems((prev) => prev.filter((item) => item.id !== id));
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl">
+        <h1 className="mb-6 text-xl font-semibold text-slate-100">History</h1>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-24 animate-pulse rounded-md bg-slate-800" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (

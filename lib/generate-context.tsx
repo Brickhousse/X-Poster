@@ -5,7 +5,7 @@ import { generateText } from "@/app/actions/generate-text";
 import { generateImage } from "@/app/actions/generate-image";
 import { postTweet } from "@/app/actions/post-tweet";
 import { fetchLinkPreview } from "@/app/actions/fetch-link-preview";
-import { addHistoryItem, updateHistoryItem } from "@/lib/history-storage";
+import { addHistoryItem, updateHistoryItem } from "@/app/actions/history";
 import type { GenerateFormValues } from "@/lib/generation-schema";
 
 const STYLE_LABELS = ["Cinematic / Symbolic", "Surreal / Abstract", "Bold Graphic / Typographic"] as const;
@@ -138,11 +138,8 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       ]);
 
       if (resolvedText) {
-        const id = crypto.randomUUID();
-        currentHistoryId.current = id;
         const firstUrl = "error" in r1 ? null : r1.url;
-        addHistoryItem({
-          id,
+        const result = await addHistoryItem({
           prompt: values.prompt,
           imagePrompt: imagePrompts[0],
           editedText: resolvedText,
@@ -150,6 +147,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
           status: "draft",
           createdAt: new Date().toISOString(),
         });
+        if ("id" in result) currentHistoryId.current = result.id;
       }
     } finally {
       setIsGenerating(false);
@@ -171,7 +169,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       } else {
         setPostSuccess({ tweetUrl: result.tweetUrl });
         if (currentHistoryId.current) {
-          updateHistoryItem(currentHistoryId.current, {
+          await updateHistoryItem(currentHistoryId.current, {
             editedText,
             status: "posted",
             tweetUrl: result.tweetUrl,
@@ -184,19 +182,17 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const handleSchedule = (scheduledFor: string) => {
+  const handleSchedule = async (scheduledFor: string) => {
     if (!scheduledFor) return;
-    const id = currentHistoryId.current ?? crypto.randomUUID();
     const isoScheduled = new Date(scheduledFor).toISOString();
     if (currentHistoryId.current) {
-      updateHistoryItem(currentHistoryId.current, {
+      await updateHistoryItem(currentHistoryId.current, {
         editedText,
         status: "scheduled",
         scheduledFor: isoScheduled,
       });
     } else {
-      addHistoryItem({
-        id,
+      const result = await addHistoryItem({
         prompt: lastPrompt,
         editedText,
         imageUrl: imageUrls[selectedImageIndex],
@@ -204,7 +200,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
         createdAt: new Date().toISOString(),
         scheduledFor: isoScheduled,
       });
-      currentHistoryId.current = id;
+      if ("id" in result) currentHistoryId.current = result.id;
     }
     setScheduleSuccess(true);
   };

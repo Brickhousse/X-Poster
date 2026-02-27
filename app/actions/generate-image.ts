@@ -1,9 +1,9 @@
 "use server";
 
-import { cookies } from "next/headers";
-import { getIronSession } from "iron-session";
+import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
-import { sessionOptions, type SessionData } from "@/lib/session";
+import { getSupabaseClient } from "@/lib/supabase";
+import { decrypt } from "@/lib/encryption";
 
 const GROK_IMAGE_URL = "https://api.x.ai/v1/images/generations";
 
@@ -19,17 +19,28 @@ export async function generateImage(prompt: string): Promise<ImageResult> {
     return { error: "Invalid image prompt." };
   }
 
-  const session = await getIronSession<SessionData>(await cookies(), sessionOptions);
-  if (!session.grokApiKey) {
+  const { userId } = await auth();
+  if (!userId) return { error: "Not authenticated." };
+
+  const supabase = getSupabaseClient();
+  const { data: creds } = await supabase
+    .from("user_credentials")
+    .select("grok_api_key")
+    .eq("user_id", userId)
+    .single();
+
+  if (!creds?.grok_api_key) {
     return { error: "Grok API key not set. Go to Settings to add it." };
   }
+
+  const grokApiKey = decrypt(creds.grok_api_key as string);
 
   try {
     const res = await fetch(GROK_IMAGE_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session.grokApiKey}`,
+        Authorization: `Bearer ${grokApiKey}`,
       },
       body: JSON.stringify({
         model: "grok-imagine-image-pro",

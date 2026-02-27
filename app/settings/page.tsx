@@ -7,7 +7,8 @@ import { removeGrokKey } from "@/app/actions/remove-grok-key";
 import { disconnectX } from "@/app/actions/disconnect-x";
 import { getSessionStatus } from "@/app/actions/get-session-status";
 import { generateXAuthUrl } from "@/app/actions/x-auth";
-import { loadSettings, saveSettings } from "@/lib/settings-storage";
+import { saveSettings } from "@/app/actions/save-settings";
+import { getSettings } from "@/app/actions/get-settings";
 
 export default function SettingsPage() {
   const [showGrok, setShowGrok] = useState(false);
@@ -21,6 +22,7 @@ export default function SettingsPage() {
   const [grokSaving, setGrokSaving] = useState(false);
   const [grokRemoving, setGrokRemoving] = useState(false);
   const [openaiSaved, setOpenaiSaved] = useState(false);
+  const [openaiSaving, setOpenaiSaving] = useState(false);
   const [xConnected, setXConnected] = useState(false);
   const [xConnecting, setXConnecting] = useState(false);
   const [xConnectError, setXConnectError] = useState<string | null>(null);
@@ -32,17 +34,15 @@ export default function SettingsPage() {
       setHasGrokKey(status.hasGrokKey);
       setXConnected(status.hasXToken);
     });
-    const saved = loadSettings();
-    if (saved.openaiApiKey) {
-      setOpenaiKey(saved.openaiApiKey);
-      setHasOpenaiKey(true);
-    }
-    if (saved.xTier) setXTier(saved.xTier);
+    getSettings().then((s) => {
+      setXTier(s.xTier);
+      setHasOpenaiKey(s.hasOpenaiKey);
+    });
   }, []);
 
-  const handleTierChange = (tier: "free" | "premium") => {
+  const handleTierChange = async (tier: "free" | "premium") => {
     setXTier(tier);
-    saveSettings({ ...loadSettings(), xTier: tier });
+    await saveSettings({ xTier: tier });
   };
 
   const handleSaveGrok = async () => {
@@ -68,16 +68,18 @@ export default function SettingsPage() {
     setGrokRemoving(false);
   };
 
-  const handleSaveOpenAi = () => {
-    saveSettings({ ...loadSettings(), openaiApiKey: openaiKey });
+  const handleSaveOpenAi = async () => {
+    setOpenaiSaving(true);
+    await saveSettings({ openaiApiKey: openaiKey });
+    setOpenaiSaving(false);
     setHasOpenaiKey(true);
+    setOpenaiKey("");
     setOpenaiSaved(true);
     setTimeout(() => setOpenaiSaved(false), 2000);
   };
 
-  const handleRemoveOpenAi = () => {
-    const current = loadSettings();
-    saveSettings({ ...current, openaiApiKey: "" });
+  const handleRemoveOpenAi = async () => {
+    await saveSettings({ openaiApiKey: "" });
     setOpenaiKey("");
     setHasOpenaiKey(false);
   };
@@ -220,9 +222,10 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={handleSaveOpenAi}
-              disabled={!openaiKey}
-              className="rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!openaiKey || openaiSaving}
+              className="flex items-center gap-2 rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
             >
+              {openaiSaving && <Loader2 className="h-4 w-4 animate-spin" />}
               Save key
             </button>
             {hasOpenaiKey && (

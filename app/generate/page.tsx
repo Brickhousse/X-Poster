@@ -6,7 +6,7 @@ import { Loader2, MessageCircle, Repeat2, Heart, BarChart2 } from "lucide-react"
 import { zodResolver } from "@hookform/resolvers/zod";
 import { generateSchema, type GenerateFormValues } from "@/lib/generation-schema";
 import { getSessionStatus } from "@/app/actions/get-session-status";
-import { loadSettings } from "@/lib/settings-storage";
+import { getSettings } from "@/app/actions/get-settings";
 import { useGenerate } from "@/lib/generate-context";
 
 export default function GeneratePage() {
@@ -55,8 +55,9 @@ export default function GeneratePage() {
     getSessionStatus().then((status) => {
       if (!status.hasGrokKey) setMissingKey(true);
     });
-    const { xTier } = loadSettings();
-    setCharLimit(xTier === "premium" ? 25000 : 280);
+    getSettings().then(({ xTier }) => {
+      setCharLimit(xTier === "premium" ? 25000 : 280);
+    });
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const charCountColor =

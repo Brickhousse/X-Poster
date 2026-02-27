@@ -1,23 +1,25 @@
-import { NextRequest, NextResponse } from "next/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
+const isProtectedRoute = createRouteMatcher([
+  "/generate(.*)",
+  "/history(.*)",
+  "/settings(.*)",
+]);
 
 // In-memory rate limiter: 30 server action POSTs per minute per IP.
-// For production with multiple instances, replace with Upstash Redis:
-// https://upstash.com/docs/redis/sdks/ratelimit-ts/overview
 const ipMap = new Map<string, { count: number; resetAt: number }>();
-
 const LIMIT = 30;
-const WINDOW_MS = 60 * 1000; // 1 minute
+const WINDOW_MS = 60 * 1000;
 
-function isServerActionPost(req: NextRequest): boolean {
-  return (
+function checkRateLimit(req: NextRequest): NextResponse | null {
+  const isServerActionPost =
     req.method === "POST" &&
     (req.headers.get("next-action") !== null ||
-      req.headers.get("content-type")?.includes("multipart/form-data") === true)
-  );
-}
+      req.headers.get("content-type")?.includes("multipart/form-data") === true);
 
-export function middleware(req: NextRequest) {
-  if (!isServerActionPost(req)) return NextResponse.next();
+  if (!isServerActionPost) return null;
 
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
@@ -29,7 +31,7 @@ export function middleware(req: NextRequest) {
 
   if (!entry || now > entry.resetAt) {
     ipMap.set(ip, { count: 1, resetAt: now + WINDOW_MS });
-    return NextResponse.next();
+    return null;
   }
 
   if (entry.count >= LIMIT) {
@@ -42,9 +44,18 @@ export function middleware(req: NextRequest) {
   }
 
   entry.count++;
-  return NextResponse.next();
+  return null;
 }
 
+export default clerkMiddleware(async (auth, req) => {
+  const rateLimited = checkRateLimit(req);
+  if (rateLimited) return rateLimited;
+  if (isProtectedRoute(req)) await auth.protect();
+});
+
 export const config = {
-  matcher: "/:path*",
+  matcher: [
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+  ],
 };

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sparkles, History, Settings } from "lucide-react";
+import { UserButton } from "@clerk/nextjs";
 
 const NAV_ITEMS = [
   { href: "/generate", label: "Generate", icon: Sparkles },
@@ -43,6 +44,11 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}
           );
         })}
       </nav>
+
+      {/* User account */}
+      <div className="border-t border-slate-800 p-3">
+        <UserButton afterSignOutUrl="/sign-in" />
+      </div>
     </div>
   );
 }

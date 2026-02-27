@@ -1,10 +1,10 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { auth } from "@clerk/nextjs/server";
 import { TwitterApi, EUploadMimeType, ApiResponseError } from "twitter-api-v2";
-import { getIronSession } from "iron-session";
 import { z } from "zod";
-import { sessionOptions, type SessionData } from "@/lib/session";
+import { getSupabaseClient } from "@/lib/supabase";
+import { decrypt } from "@/lib/encryption";
 
 const schema = z.object({
   text: z.string().min(1, "Post cannot be empty.").max(25000, "Post exceeds the maximum allowed length."),
@@ -19,13 +19,24 @@ export async function postTweet(text: string, imageUrl?: string): Promise<PostRe
     return { error: parsed.error.issues[0].message };
   }
 
-  const session = await getIronSession<SessionData>(await cookies(), sessionOptions);
-  if (!session.xAccessToken) {
+  const { userId } = await auth();
+  if (!userId) return { error: "Not authenticated." };
+
+  const supabase = getSupabaseClient();
+  const { data: creds } = await supabase
+    .from("user_credentials")
+    .select("x_access_token")
+    .eq("user_id", userId)
+    .single();
+
+  if (!creds?.x_access_token) {
     return { error: "X account not connected. Go to Settings to connect." };
   }
 
+  const xAccessToken = decrypt(creds.x_access_token as string);
+
   try {
-    const client = new TwitterApi(session.xAccessToken);
+    const client = new TwitterApi(xAccessToken);
 
     if (parsed.data.imageUrl) {
       const imgRes = await fetch(parsed.data.imageUrl);

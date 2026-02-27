@@ -1,9 +1,9 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { auth } from "@clerk/nextjs/server";
 import { TwitterApi } from "twitter-api-v2";
-import { getIronSession } from "iron-session";
-import { sessionOptions, type SessionData } from "@/lib/session";
+import { getSupabaseClient } from "@/lib/supabase";
+import { encrypt } from "@/lib/encryption";
 
 type TokenResult = { ok: true } | { error: string };
 
@@ -12,6 +12,9 @@ export async function exchangeXCode(
   codeVerifier: string,
   callbackUrl: string
 ): Promise<TokenResult> {
+  const { userId } = await auth();
+  if (!userId) return { error: "Not authenticated." };
+
   const clientId = process.env.NEXT_PUBLIC_X_CLIENT_ID;
   const clientSecret = process.env.X_CLIENT_SECRET;
 
@@ -27,9 +30,13 @@ export async function exchangeXCode(
       redirectUri: callbackUrl,
     });
 
-    const session = await getIronSession<SessionData>(await cookies(), sessionOptions);
-    session.xAccessToken = accessToken;
-    await session.save();
+    const supabase = getSupabaseClient();
+    await supabase
+      .from("user_credentials")
+      .upsert(
+        { user_id: userId, x_access_token: encrypt(accessToken), updated_at: new Date().toISOString() },
+        { onConflict: "user_id" }
+      );
 
     return { ok: true };
   } catch {
