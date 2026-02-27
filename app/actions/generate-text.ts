@@ -78,7 +78,7 @@ export type TextResult =
   | { text: string; imagePrompts: [string, string, string]; whyItWorks: string }
   | { error: string };
 
-export async function generateText(prompt: string): Promise<TextResult> {
+export async function generateText(prompt: string, noveltyMode?: boolean): Promise<TextResult> {
   const parsed = schema.safeParse({ prompt });
   if (!parsed.success) {
     return { error: "Invalid prompt." };
@@ -100,6 +100,32 @@ export async function generateText(prompt: string): Promise<TextResult> {
 
   const grokApiKey = decrypt(creds.grok_api_key as string);
 
+  let userMessage = parsed.data.prompt;
+
+  if (noveltyMode) {
+    const { data: recentRows } = await supabase
+      .from("posts")
+      .select("prompt")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    const recentPrompts = (recentRows ?? [])
+      .map((r) => (r as Record<string, unknown>).prompt as string)
+      .filter(Boolean);
+
+    if (recentPrompts.length > 0) {
+      const list = recentPrompts.map((p) => `- "${p}"`).join("\n");
+      userMessage =
+        `Topic: ${parsed.data.prompt}\n\n` +
+        `[NOVELTY DIRECTIVE — internal context only, do not mention in your response]\n` +
+        `The user has already posted about these topics recently. Generate content on a distinctly ` +
+        `different angle or theme that does NOT overlap with any of the following:\n` +
+        `${list}\n` +
+        `[END NOVELTY DIRECTIVE]`;
+    }
+  }
+
   try {
     const res = await fetch(GROK_API_URL, {
       method: "POST",
@@ -111,7 +137,7 @@ export async function generateText(prompt: string): Promise<TextResult> {
         model: "grok-4-1-fast-reasoning",
         input: [
           { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: parsed.data.prompt },
+          { role: "user", content: userMessage },
         ],
         tools: [{ type: "web_search" }],
         max_tokens: 1200,

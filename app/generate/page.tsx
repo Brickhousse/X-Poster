@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { Loader2, MessageCircle, Repeat2, Heart, BarChart2 } from "lucide-react";
+import { Loader2, MessageCircle, Repeat2, Heart, BarChart2, Shuffle } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { generateSchema, type GenerateFormValues } from "@/lib/generation-schema";
 import { getSessionStatus } from "@/app/actions/get-session-status";
@@ -16,6 +16,7 @@ export default function GeneratePage() {
     isPosting, postSuccess, postError, scheduleSuccess,
     editedText, charLimit,
     linkPreviewImageUrl, isFetchingLinkPreview, selectedImage,
+    noveltyMode, setNoveltyMode,
     setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedImageIndex,
     onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage,
     prefill,
@@ -109,6 +110,18 @@ export default function GeneratePage() {
           >
             {isGenerating && <Loader2 className="h-4 w-4 animate-spin" />}
             {isGenerating ? "Generating…" : "Generate"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setNoveltyMode(!noveltyMode)}
+            className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+              noveltyMode
+                ? "border-violet-500 bg-violet-500/10 text-violet-400"
+                : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+            }`}
+          >
+            <Shuffle className="h-3 w-3" />
+            Fresh topics
           </button>
           {(editedText || anyImageUrl || textError || imageErrors.some(Boolean)) && (
             <button

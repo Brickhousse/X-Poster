@@ -32,6 +32,8 @@ interface GenerateState {
   linkPreviewImageUrl: string | null;
   isFetchingLinkPreview: boolean;
   selectedImage: "generated" | "link" | "none";
+  noveltyMode: boolean;
+  setNoveltyMode: (v: boolean) => void;
   setEditedText: (v: string) => void;
   setCharLimit: (v: number) => void;
   setMissingKey: (v: boolean) => void;
@@ -69,6 +71,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   const [linkPreviewImageUrl, setLinkPreviewImageUrl] = useState<string | null>(null);
   const [isFetchingLinkPreview, setIsFetchingLinkPreview] = useState(false);
   const [selectedImage, setSelectedImage] = useState<"generated" | "link" | "none">("generated");
+  const [noveltyMode, setNoveltyMode] = useState(false);
   const currentHistoryId = useRef<string | null>(null);
 
   const prefill = ({ prompt, text, imageUrls: urls, imagePrompt }: { prompt?: string; text?: string; imageUrls?: [string | null, string | null, string | null]; imagePrompt?: string }) => {
@@ -94,7 +97,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     setLastPrompt(values.prompt);
     setIsGenerating(true);
     try {
-      const textResult = await generateText(values.prompt);
+      const textResult = await generateText(values.prompt, noveltyMode);
 
       let resolvedText: string | null = null;
       let imagePrompts: [string, string, string] = [values.prompt, values.prompt, values.prompt];
@@ -280,6 +283,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       isPosting, postSuccess, postError, scheduleSuccess,
       lastPrompt, editedText, charLimit,
       linkPreviewImageUrl, isFetchingLinkPreview, selectedImage,
+      noveltyMode, setNoveltyMode,
       setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedImageIndex,
       onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage,
       prefill,
