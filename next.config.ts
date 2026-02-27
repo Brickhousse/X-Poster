@@ -25,7 +25,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://clerk.plastit.app",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
-              "connect-src 'self' https://clerk.plastit.app https://*.clerk.accounts.dev https://clerk.*.lcl.dev https://*.supabase.co",
+              "connect-src 'self' https://clerk.plastit.app https://*.clerk.accounts.dev https://*.supabase.co",
               "worker-src 'self' blob:",
               "frame-ancestors 'none'",
             ].join("; "),
