@@ -43,7 +43,7 @@ interface GenerateState {
   handleDiscard: () => void;
   handleRegenerateImage: (overridePrompts?: [string, string, string]) => Promise<void>;
   // allow history page to prefill state
-  prefill: (opts: { prompt?: string; text?: string; imageUrl?: string; imagePrompt?: string }) => void;
+  prefill: (opts: { prompt?: string; text?: string; imageUrls?: [string | null, string | null, string | null]; imagePrompt?: string }) => void;
 }
 
 const GenerateContext = createContext<GenerateState | null>(null);
@@ -71,10 +71,10 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   const [selectedImage, setSelectedImage] = useState<"generated" | "link" | "none">("generated");
   const currentHistoryId = useRef<string | null>(null);
 
-  const prefill = ({ prompt, text, imageUrl, imagePrompt }: { prompt?: string; text?: string; imageUrl?: string; imagePrompt?: string }) => {
+  const prefill = ({ prompt, text, imageUrls: urls, imagePrompt }: { prompt?: string; text?: string; imageUrls?: [string | null, string | null, string | null]; imagePrompt?: string }) => {
     if (prompt) setLastPrompt(prompt);
     if (text) { setGeneratedText(text); setEditedText(text); }
-    if (imageUrl) setImageUrls([imageUrl, null, null]);
+    if (urls) setImageUrls(urls);
     if (imagePrompt) setLastImagePrompts([imagePrompt, imagePrompt, imagePrompt]);
   };
 

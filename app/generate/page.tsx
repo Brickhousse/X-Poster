@@ -40,17 +40,22 @@ export default function GeneratePage() {
     const params = new URLSearchParams(window.location.search);
     const prefilledPrompt = params.get("prompt");
     const prefilledText = params.get("text");
-    const prefilledImageUrl = params.get("imageUrl");
     const prefilledImagePrompt = params.get("imagePrompt");
+    // Support all 3 stored URLs (imageUrl1/2/3) with fallback to legacy imageUrl param
+    const prefilledImageUrl1 = params.get("imageUrl1") ?? params.get("imageUrl");
+    const prefilledImageUrl2 = params.get("imageUrl2");
+    const prefilledImageUrl3 = params.get("imageUrl3");
+    const hasStoredImages = !!(prefilledImageUrl1 || prefilledImageUrl2 || prefilledImageUrl3);
     if (prefilledPrompt) setValue("prompt", prefilledPrompt);
-    if (prefilledPrompt || prefilledText || prefilledImageUrl || prefilledImagePrompt) {
+    if (prefilledPrompt || prefilledText || hasStoredImages || prefilledImagePrompt) {
       prefill({
         prompt: prefilledPrompt ?? undefined,
         text: prefilledText ?? undefined,
-        imageUrl: prefilledImageUrl ?? undefined,
+        imageUrls: [prefilledImageUrl1 ?? null, prefilledImageUrl2 ?? null, prefilledImageUrl3 ?? null],
         imagePrompt: prefilledImagePrompt ?? undefined,
       });
-      if (prefilledImagePrompt) {
+      // Only regenerate if there are no stored images to show
+      if (prefilledImagePrompt && !hasStoredImages) {
         const prompts: [string, string, string] = [prefilledImagePrompt, prefilledImagePrompt, prefilledImagePrompt];
         handleRegenerateImage(prompts);
       }

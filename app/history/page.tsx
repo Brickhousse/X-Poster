@@ -78,8 +78,12 @@ export default function HistoryPage() {
   const handleUseAgain = (item: HistoryItem) => {
     const params = new URLSearchParams({ prompt: item.prompt });
     if (item.editedText) params.set("text", item.editedText);
-    if (item.imageUrl) params.set("imageUrl", item.imageUrl);
     if (item.imagePrompt) params.set("imagePrompt", item.imagePrompt);
+    // Pass all stored image URLs; fall back to single imageUrl for legacy rows
+    const urls = item.imageUrls ?? (item.imageUrl ? [item.imageUrl] : []);
+    if (urls[0]) params.set("imageUrl1", urls[0]);
+    if (urls[1]) params.set("imageUrl2", urls[1]);
+    if (urls[2]) params.set("imageUrl3", urls[2]);
     router.push(`/generate?${params.toString()}`);
   };
 
