@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { Loader2, MessageCircle, Repeat2, Heart, BarChart2, Shuffle } from "lucide-react";
+import { Loader2, MessageCircle, Repeat2, Heart, BarChart2, Shuffle, Upload } from "lucide-react";
+import { uploadCustomImage } from "@/app/actions/upload-custom-image";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { generateSchema, type GenerateFormValues } from "@/lib/generation-schema";
 import { getSessionStatus } from "@/app/actions/get-session-status";
@@ -18,6 +19,7 @@ export default function GeneratePage() {
     linkPreviewImageUrl, isFetchingLinkPreview, selectedImage,
     noveltyMode, setNoveltyMode,
     setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedImageIndex,
+    customImageUrl, setCustomImageUrl,
     onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage,
     clearLinkPreview, prefill,
   } = useGenerate();
@@ -26,6 +28,9 @@ export default function GeneratePage() {
   const [modalImageUrl, setModalImageUrl] = useState<string | null>(null);
   const [showSchedule, setShowSchedule] = useState(false);
   const [scheduledFor, setScheduledFor] = useState("");
+  const [customUrlInput, setCustomUrlInput] = useState("");
+  const [isUploadingCustomImage, setIsUploadingCustomImage] = useState(false);
+  const [customUploadError, setCustomUploadError] = useState("");
 
   const {
     register,
@@ -75,7 +80,51 @@ export default function GeneratePage() {
     editedText.length >= charLimit * 0.9 ? "text-amber-400" :
     "text-slate-500";
 
-  const activeImageUrl = selectedImage === "generated" ? imageUrls[selectedImageIndex] : selectedImage === "link" ? linkPreviewImageUrl : null;
+  const activeImageUrl =
+    selectedImage === "generated" ? imageUrls[selectedImageIndex] :
+    selectedImage === "link" ? linkPreviewImageUrl :
+    selectedImage === "custom" ? customImageUrl :
+    null;
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setCustomUploadError("Image must be under 5 MB.");
+      e.target.value = "";
+      return;
+    }
+    setIsUploadingCustomImage(true);
+    setCustomUploadError("");
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const dataUrl = ev.target?.result as string;
+      const result = await uploadCustomImage(dataUrl);
+      if ("error" in result) {
+        setCustomUploadError(result.error);
+      } else {
+        setCustomImageUrl(result.url);
+        setSelectedImage("custom");
+        setCustomUrlInput("");
+      }
+      setIsUploadingCustomImage(false);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleCustomUrl = () => {
+    const url = customUrlInput.trim();
+    if (!url) return;
+    try {
+      new URL(url);
+      setCustomImageUrl(url);
+      setSelectedImage("custom");
+      setCustomUploadError("");
+    } catch {
+      setCustomUploadError("Invalid image URL.");
+    }
+  };
   const anyImageUrl = imageUrls[0] ?? imageUrls[1] ?? imageUrls[2];
   const anyImageVisible = imageUrls.some(Boolean) || imageErrors.some(Boolean) || isGenerating || isRegeneratingImage;
   const showLinkCard = !isGenerating && !!linkPreviewImageUrl;
@@ -264,7 +313,19 @@ export default function GeneratePage() {
       {/* Image style selector — 3-card grid */}
       {anyImageVisible && (
         <div className="mt-6 space-y-3">
-          <h2 className="text-sm font-medium text-slate-300">Choose an image</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-medium text-slate-300">Choose an image</h2>
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-500 hover:text-slate-300">
+              <input
+                type="radio"
+                name="imageChoice"
+                checked={selectedImage === "none"}
+                onChange={() => setSelectedImage("none")}
+                className="accent-slate-400"
+              />
+              No image
+            </label>
+          </div>
           <div className={`grid gap-2 ${showLinkCard ? "grid-cols-4" : "grid-cols-3"}`}>
             {([0, 1, 2] as const).map((idx) => {
               const url = imageUrls[idx];
@@ -332,6 +393,7 @@ export default function GeneratePage() {
             const expandUrl =
               selectedImage === "generated" ? imageUrls[selectedImageIndex] :
               selectedImage === "link" ? linkPreviewImageUrl :
+              selectedImage === "custom" ? customImageUrl :
               null;
             return expandUrl ? (
               <button
@@ -357,17 +419,60 @@ export default function GeneratePage() {
             {isRegeneratingImage && <Loader2 className="h-3 w-3 animate-spin" />}
             {isRegeneratingImage ? "Regenerating…" : "Regenerate all styles"}
           </button>
-          {showLinkCard && (
-            <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-500 hover:text-slate-300">
-              <input
-                type="radio"
-                name="imageChoice"
-                checked={selectedImage === "none"}
-                onChange={() => setSelectedImage("none")}
-                className="accent-slate-400"
-              />
-              No image
-            </label>
+          {!isGenerating && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <label className={`flex flex-shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 ${isUploadingCustomImage ? "pointer-events-none opacity-50" : ""}`}>
+                  {isUploadingCustomImage ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                  {isUploadingCustomImage ? "Uploading…" : "Upload"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={isUploadingCustomImage}
+                    onChange={handleFileUpload}
+                  />
+                </label>
+                <input
+                  type="url"
+                  value={customUrlInput}
+                  onChange={(e) => setCustomUrlInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleCustomUrl(); }}
+                  onBlur={handleCustomUrl}
+                  placeholder="or paste image URL…"
+                  className="min-w-0 flex-1 rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-slate-100 placeholder-slate-600 outline-none focus:border-slate-500"
+                />
+              </div>
+              {customImageUrl && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedImage("custom")}
+                  className={`relative w-full rounded-md border p-1.5 text-left transition-colors focus:outline-none ${
+                    selectedImage === "custom"
+                      ? "border-slate-400 ring-2 ring-slate-400"
+                      : "border-slate-700 hover:border-slate-500"
+                  }`}
+                >
+                  <img src={customImageUrl} alt="Custom" className="h-20 w-full rounded object-cover" />
+                  <div className="mt-1 flex items-center justify-between px-0.5">
+                    <p className="text-xs text-slate-400 leading-tight">Custom</p>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCustomImageUrl(null);
+                        if (selectedImage === "custom") setSelectedImage("generated");
+                        setCustomUrlInput("");
+                      }}
+                      className="text-xs text-slate-600 hover:text-slate-300 focus:outline-none"
+                    >
+                      ✕ Remove
+                    </button>
+                  </div>
+                </button>
+              )}
+              {customUploadError && <p className="text-xs text-red-400">{customUploadError}</p>}
+            </div>
           )}
         </div>
       )}

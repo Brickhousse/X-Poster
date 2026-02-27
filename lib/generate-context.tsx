@@ -31,13 +31,15 @@ interface GenerateState {
   charLimit: number;
   linkPreviewImageUrl: string | null;
   isFetchingLinkPreview: boolean;
-  selectedImage: "generated" | "link" | "none";
+  selectedImage: "generated" | "link" | "custom" | "none";
+  customImageUrl: string | null;
   noveltyMode: boolean;
   setNoveltyMode: (v: boolean) => void;
   setEditedText: (v: string) => void;
   setCharLimit: (v: number) => void;
   setMissingKey: (v: boolean) => void;
-  setSelectedImage: (v: "generated" | "link" | "none") => void;
+  setSelectedImage: (v: "generated" | "link" | "custom" | "none") => void;
+  setCustomImageUrl: (v: string | null) => void;
   setSelectedImageIndex: (v: 0 | 1 | 2) => void;
   onSubmit: (values: GenerateFormValues) => Promise<void>;
   handleApproveAndPost: () => Promise<void>;
@@ -71,7 +73,8 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   const [charLimit, setCharLimit] = useState(280);
   const [linkPreviewImageUrl, setLinkPreviewImageUrl] = useState<string | null>(null);
   const [isFetchingLinkPreview, setIsFetchingLinkPreview] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<"generated" | "link" | "none">("generated");
+  const [selectedImage, setSelectedImage] = useState<"generated" | "link" | "custom" | "none">("generated");
+  const [customImageUrl, setCustomImageUrl] = useState<string | null>(null);
   const [noveltyMode, setNoveltyMode] = useState(false);
   const currentHistoryId = useRef<string | null>(null);
 
@@ -102,6 +105,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     setSelectedImageIndex(0);
     setMissingKey(false);
     setLinkPreviewImageUrl(null);
+    setCustomImageUrl(null);
     setSelectedImage("generated");
     setPostSuccess(null);
     setPostError(null);
@@ -194,6 +198,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       const imageToPost =
         selectedImage === "generated" ? imageUrls[selectedImageIndex] :
         selectedImage === "link" ? linkPreviewImageUrl :
+        selectedImage === "custom" ? customImageUrl :
         null;
       const result = await postTweet(editedText, imageToPost ?? undefined);
       if ("error" in result) {
@@ -222,6 +227,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       const imageToSchedule =
         selectedImage === "generated" ? imageUrls[selectedImageIndex] :
         selectedImage === "link" ? linkPreviewImageUrl :
+        selectedImage === "custom" ? customImageUrl :
         null;
       await updateHistoryItem(currentHistoryId.current, {
         editedText,
@@ -258,13 +264,14 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     setPostError(null);
     setScheduleSuccess(false);
     setLinkPreviewImageUrl(null);
+    setCustomImageUrl(null);
     setSelectedImage("generated");
     currentHistoryId.current = null;
   };
 
   const clearLinkPreview = () => {
     setLinkPreviewImageUrl(null);
-    setSelectedImage((prev) => prev === "link" ? "generated" : prev as "generated" | "none");
+    setSelectedImage((prev) => prev === "link" ? "generated" : prev as "generated" | "custom" | "none");
   };
 
   const handleRegenerateImage = async (overridePrompts?: [string, string, string]) => {
@@ -300,9 +307,9 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       missingKey, isGenerating, isRegeneratingImage, whyItWorks, lastImagePrompts,
       isPosting, postSuccess, postError, scheduleSuccess,
       lastPrompt, editedText, charLimit,
-      linkPreviewImageUrl, isFetchingLinkPreview, selectedImage,
+      linkPreviewImageUrl, isFetchingLinkPreview, selectedImage, customImageUrl,
       noveltyMode, setNoveltyMode,
-      setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedImageIndex,
+      setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedImageIndex, setCustomImageUrl,
       onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage,
       clearLinkPreview, prefill,
     }}>
