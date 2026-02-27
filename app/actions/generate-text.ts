@@ -105,22 +105,31 @@ export async function generateText(prompt: string, noveltyMode?: boolean): Promi
   if (noveltyMode) {
     const { data: recentRows } = await supabase
       .from("posts")
-      .select("prompt")
+      .select("prompt, edited_text")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(15);
 
-    const recentPrompts = (recentRows ?? [])
-      .map((r) => (r as Record<string, unknown>).prompt as string)
-      .filter(Boolean);
+    const recentPosts = (recentRows ?? []).map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        prompt: row.prompt as string | null,
+        text: row.edited_text as string | null,
+      };
+    }).filter((r) => r.prompt || r.text);
 
-    if (recentPrompts.length > 0) {
-      const list = recentPrompts.map((p) => `- "${p}"`).join("\n");
+    if (recentPosts.length > 0) {
+      const list = recentPosts.map((r) => {
+        const hook = r.text ? r.text.split("\n")[0].slice(0, 120) : null;
+        return hook
+          ? `- Topic: "${r.prompt}" → Hook: "${hook}"`
+          : `- Topic: "${r.prompt}"`;
+      }).join("\n");
       userMessage =
         `Topic: ${parsed.data.prompt}\n\n` +
         `[NOVELTY DIRECTIVE — internal context only, do not mention in your response]\n` +
-        `The user has already posted about these topics recently. Generate content on a distinctly ` +
-        `different angle or theme that does NOT overlap with any of the following:\n` +
+        `The user has already posted content with these angles. You MUST pick a distinctly ` +
+        `different angle, hook, and framing that does NOT overlap with any of the following:\n` +
         `${list}\n` +
         `[END NOVELTY DIRECTIVE]`;
     }
