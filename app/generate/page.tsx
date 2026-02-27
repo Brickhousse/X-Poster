@@ -50,6 +50,10 @@ export default function GeneratePage() {
         imageUrl: prefilledImageUrl ?? undefined,
         imagePrompt: prefilledImagePrompt ?? undefined,
       });
+      if (prefilledImagePrompt) {
+        const prompts: [string, string, string] = [prefilledImagePrompt, prefilledImagePrompt, prefilledImagePrompt];
+        handleRegenerateImage(prompts);
+      }
     }
 
     getSessionStatus().then((status) => {
@@ -305,7 +309,7 @@ export default function GeneratePage() {
 
           <button
             type="button"
-            onClick={handleRegenerateImage}
+            onClick={() => handleRegenerateImage()}
             disabled={isGenerating || isRegeneratingImage}
             className="flex items-center gap-2 rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >

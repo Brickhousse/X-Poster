@@ -12,4 +12,5 @@ export interface HistoryItem {
   postedAt?: string; // ISO 8601
   scheduledFor?: string; // ISO 8601
   pinned?: boolean; // undefined = false (legacy rows before column existed)
+  imageUrls?: string[]; // all Storage URLs (up to 3); may be absent for legacy rows
 }

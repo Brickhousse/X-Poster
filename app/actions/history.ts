@@ -2,10 +2,11 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseClient } from "@/lib/supabase";
+import { uploadImageFromUrl, deleteStorageImages } from "@/lib/image-storage";
 import type { HistoryItem } from "@/lib/history-schema";
 
-type AddInput = Omit<HistoryItem, "id">;
-type AddResult = { id: string } | { error: string };
+type AddInput = Omit<HistoryItem, "id"> & { allImageUrls?: string[] };
+type AddResult = { id: string; storageUrls: string[] } | { error: string };
 type MutateResult = { ok: true } | { error: string };
 
 const HISTORY_LIMIT = 15;
@@ -17,6 +18,7 @@ function dbRowToHistoryItem(row: Record<string, unknown>): HistoryItem {
     imagePrompt: (row.image_prompt as string | null) ?? undefined,
     editedText: row.edited_text as string,
     imageUrl: (row.image_url as string | null) ?? null,
+    imageUrls: (row.image_urls as string[] | null) ?? undefined,
     status: row.status as HistoryItem["status"],
     createdAt: row.created_at as string,
     tweetUrl: (row.tweet_url as string | null) ?? undefined,
@@ -30,6 +32,18 @@ export async function addHistoryItem(item: AddInput): Promise<AddResult> {
   const { userId } = await auth();
   if (!userId) return { error: "Not authenticated." };
 
+  // Upload all provided Grok URLs to Storage in parallel
+  const storageUrls: string[] = [];
+  if (item.allImageUrls && item.allImageUrls.length > 0) {
+    const results = await Promise.all(
+      item.allImageUrls.map((u) => uploadImageFromUrl(u, userId))
+    );
+    storageUrls.push(...results.filter((u): u is string => u !== null));
+  }
+
+  // Use first Storage URL as canonical image_url (overrides ephemeral Grok URL)
+  const canonicalImageUrl = storageUrls[0] ?? item.imageUrl ?? null;
+
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("posts")
@@ -38,7 +52,8 @@ export async function addHistoryItem(item: AddInput): Promise<AddResult> {
       prompt: item.prompt,
       image_prompt: item.imagePrompt ?? null,
       edited_text: item.editedText,
-      image_url: item.imageUrl ?? null,
+      image_url: canonicalImageUrl,
+      image_urls: storageUrls,
       status: item.status,
       tweet_url: item.tweetUrl ?? null,
       posted_at: item.postedAt ?? null,
@@ -53,13 +68,19 @@ export async function addHistoryItem(item: AddInput): Promise<AddResult> {
   // Auto-trim: keep only the most recent HISTORY_LIMIT non-pinned items
   const { data: nonPinned } = await supabase
     .from("posts")
-    .select("id")
+    .select("id, image_urls")
     .eq("user_id", userId)
     .eq("pinned", false)
     .order("created_at", { ascending: false });
 
   if (nonPinned && nonPinned.length > HISTORY_LIMIT) {
-    const idsToDelete = nonPinned.slice(HISTORY_LIMIT).map((r) => (r as Record<string, unknown>).id);
+    const toDelete = nonPinned.slice(HISTORY_LIMIT) as Record<string, unknown>[];
+    const idsToDelete = toDelete.map((r) => r.id);
+    // Delete Storage files for trimmed items
+    for (const row of toDelete) {
+      const urls = row.image_urls as string[] | null;
+      if (urls?.length) await deleteStorageImages(urls);
+    }
     await supabase
       .from("posts")
       .delete()
@@ -67,7 +88,7 @@ export async function addHistoryItem(item: AddInput): Promise<AddResult> {
       .eq("user_id", userId);
   }
 
-  return { id: data.id as string };
+  return { id: data.id as string, storageUrls };
 }
 
 export async function updateHistoryItem(
@@ -103,6 +124,18 @@ export async function deleteHistoryItem(id: string): Promise<MutateResult> {
   if (!userId) return { error: "Not authenticated." };
 
   const supabase = getSupabaseClient();
+
+  // Fetch image_urls before deletion so we can clean up Storage
+  const { data: row } = await supabase
+    .from("posts")
+    .select("image_urls")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .single();
+
+  const imageUrls = (row as Record<string, unknown> | null)?.image_urls as string[] | null;
+  if (imageUrls?.length) await deleteStorageImages(imageUrls);
+
   const { error } = await supabase
     .from("posts")
     .delete()

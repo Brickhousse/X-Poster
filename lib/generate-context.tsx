@@ -41,7 +41,7 @@ interface GenerateState {
   handleApproveAndPost: () => Promise<void>;
   handleSchedule: (scheduledFor: string) => void;
   handleDiscard: () => void;
-  handleRegenerateImage: () => Promise<void>;
+  handleRegenerateImage: (overridePrompts?: [string, string, string]) => Promise<void>;
   // allow history page to prefill state
   prefill: (opts: { prompt?: string; text?: string; imageUrl?: string; imagePrompt?: string }) => void;
 }
@@ -138,16 +138,32 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       ]);
 
       if (resolvedText) {
-        const firstUrl = "error" in r1 ? null : r1.url;
+        const allImageUrls = [
+          "error" in r1 ? null : r1.url,
+          "error" in r2 ? null : r2.url,
+          "error" in r3 ? null : r3.url,
+        ].filter((u): u is string => u !== null);
+
         const result = await addHistoryItem({
           prompt: values.prompt,
           imagePrompt: imagePrompts[0],
           editedText: resolvedText,
-          imageUrl: firstUrl,
+          imageUrl: allImageUrls[0] ?? null,
+          allImageUrls,
           status: "draft",
           createdAt: new Date().toISOString(),
         });
-        if ("id" in result) currentHistoryId.current = result.id;
+        if ("id" in result) {
+          currentHistoryId.current = result.id;
+          // Update imageUrls to Storage URLs so post/schedule use persistent URLs
+          if (result.storageUrls.length > 0) {
+            setImageUrls([
+              result.storageUrls[0] ?? null,
+              result.storageUrls[1] ?? null,
+              result.storageUrls[2] ?? null,
+            ]);
+          }
+        }
       }
     } finally {
       setIsGenerating(false);
@@ -230,11 +246,11 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     currentHistoryId.current = null;
   };
 
-  const handleRegenerateImage = async () => {
+  const handleRegenerateImage = async (overridePrompts?: [string, string, string]) => {
     setIsRegeneratingImage(true);
     setImageErrors([null, null, null]);
     setImageUrls([null, null, null]);
-    const prompts: [string, string, string] = lastImagePrompts ?? [editedText || lastPrompt, editedText || lastPrompt, editedText || lastPrompt];
+    const prompts: [string, string, string] = overridePrompts ?? lastImagePrompts ?? [editedText || lastPrompt, editedText || lastPrompt, editedText || lastPrompt];
     try {
       const [r1, r2, r3] = await Promise.all([
         generateImage(prompts[0]),
