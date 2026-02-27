@@ -29,6 +29,9 @@ export async function postTweet(text: string, imageUrl?: string): Promise<PostRe
 
     if (parsed.data.imageUrl) {
       const imgRes = await fetch(parsed.data.imageUrl);
+      if (!imgRes.ok) {
+        return { error: `Could not fetch image (${imgRes.status}). The image URL may have expired — try regenerating.` };
+      }
       const buffer = Buffer.from(await imgRes.arrayBuffer());
       const mimeType = (imgRes.headers.get("content-type")?.split(";")[0] ?? "image/jpeg") as EUploadMimeType;
       const mediaId = await client.v2.uploadMedia(buffer, { media_type: mimeType });
@@ -47,8 +50,11 @@ export async function postTweet(text: string, imageUrl?: string): Promise<PostRe
       const apiMessage = typeof detail === "object" && detail !== null && "message" in detail
         ? (detail as { message: string }).message
         : err.message;
-      if (status === 401 || status === 403) {
+      if (status === 401) {
         return { error: "Access token expired or revoked. Please reconnect your X account in Settings." };
+      }
+      if (status === 403) {
+        return { error: `X rejected the request (403 Forbidden): ${apiMessage}. If this keeps happening, disconnect and reconnect your X account in Settings.` };
       }
       if (status === 429) {
         return { error: "Rate limit reached. Please wait a few minutes and try again." };

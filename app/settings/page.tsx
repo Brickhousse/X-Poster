@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { saveGrokKey } from "@/app/actions/save-grok-key";
-import { clearSession } from "@/app/actions/clear-session";
+import { removeGrokKey } from "@/app/actions/remove-grok-key";
+import { disconnectX } from "@/app/actions/disconnect-x";
 import { getSessionStatus } from "@/app/actions/get-session-status";
 import { generateXAuthUrl } from "@/app/actions/x-auth";
 import { loadSettings, saveSettings } from "@/lib/settings-storage";
@@ -14,9 +15,11 @@ export default function SettingsPage() {
   const [grokKey, setGrokKey] = useState("");
   const [openaiKey, setOpenaiKey] = useState("");
   const [hasGrokKey, setHasGrokKey] = useState(false);
+  const [hasOpenaiKey, setHasOpenaiKey] = useState(false);
   const [grokSaved, setGrokSaved] = useState(false);
   const [grokError, setGrokError] = useState<string | null>(null);
   const [grokSaving, setGrokSaving] = useState(false);
+  const [grokRemoving, setGrokRemoving] = useState(false);
   const [openaiSaved, setOpenaiSaved] = useState(false);
   const [xConnected, setXConnected] = useState(false);
   const [xConnecting, setXConnecting] = useState(false);
@@ -30,7 +33,10 @@ export default function SettingsPage() {
       setXConnected(status.hasXToken);
     });
     const saved = loadSettings();
-    if (saved.openaiApiKey) setOpenaiKey(saved.openaiApiKey);
+    if (saved.openaiApiKey) {
+      setOpenaiKey(saved.openaiApiKey);
+      setHasOpenaiKey(true);
+    }
     if (saved.xTier) setXTier(saved.xTier);
   }, []);
 
@@ -54,10 +60,26 @@ export default function SettingsPage() {
     }
   };
 
+  const handleRemoveGrok = async () => {
+    setGrokRemoving(true);
+    await removeGrokKey();
+    setHasGrokKey(false);
+    setGrokKey("");
+    setGrokRemoving(false);
+  };
+
   const handleSaveOpenAi = () => {
-    saveSettings({ openaiApiKey: openaiKey });
+    saveSettings({ ...loadSettings(), openaiApiKey: openaiKey });
+    setHasOpenaiKey(true);
     setOpenaiSaved(true);
     setTimeout(() => setOpenaiSaved(false), 2000);
+  };
+
+  const handleRemoveOpenAi = () => {
+    const current = loadSettings();
+    saveSettings({ ...current, openaiApiKey: "" });
+    setOpenaiKey("");
+    setHasOpenaiKey(false);
   };
 
   const handleConnectX = async () => {
@@ -77,9 +99,8 @@ export default function SettingsPage() {
 
   const handleDisconnectX = async () => {
     setDisconnecting(true);
-    await clearSession();
+    await disconnectX();
     setXConnected(false);
-    setHasGrokKey(false);
     setDisconnecting(false);
     setXConnectError(null);
   };
@@ -133,6 +154,17 @@ export default function SettingsPage() {
               {grokSaving && <Loader2 className="h-4 w-4 animate-spin" />}
               Save key
             </button>
+            {hasGrokKey && (
+              <button
+                type="button"
+                onClick={handleRemoveGrok}
+                disabled={grokRemoving}
+                className="flex items-center gap-2 rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-400 hover:border-red-800 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {grokRemoving && <Loader2 className="h-3 w-3 animate-spin" />}
+                Remove key
+              </button>
+            )}
             {grokSaved && <span className="text-sm text-green-400">Saved</span>}
           </div>
           <p className="text-xs text-slate-500">
@@ -150,13 +182,20 @@ export default function SettingsPage() {
 
         {/* OpenAI API */}
         <section className="space-y-3">
-          <h2 className="text-sm font-medium text-slate-300">
-            OpenAI API{" "}
-            <span className="text-xs font-normal text-slate-500">(optional fallback)</span>
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-medium text-slate-300">
+              OpenAI API{" "}
+              <span className="text-xs font-normal text-slate-500">(optional fallback)</span>
+            </h2>
+            {hasOpenaiKey && (
+              <span className="rounded-full bg-green-900/40 px-2 py-0.5 text-xs font-medium text-green-400">
+                Key saved
+              </span>
+            )}
+          </div>
           <div className="space-y-1">
             <label htmlFor="openaiApiKey" className="block text-sm text-slate-400">
-              API Key
+              {hasOpenaiKey ? "Replace API Key" : "API Key"}
             </label>
             <div className="relative">
               <input
@@ -186,6 +225,15 @@ export default function SettingsPage() {
             >
               Save key
             </button>
+            {hasOpenaiKey && (
+              <button
+                type="button"
+                onClick={handleRemoveOpenAi}
+                className="rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-400 hover:border-red-800 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-slate-600"
+              >
+                Remove key
+              </button>
+            )}
             {openaiSaved && <span className="text-sm text-green-400">Saved</span>}
           </div>
           <p className="text-xs text-slate-500">
@@ -239,6 +287,7 @@ export default function SettingsPage() {
               {xTier === "premium" ? "25,000 character limit" : "280 character limit"}
             </p>
           </div>
+
           {xConnected ? (
             <div className="flex items-center gap-4">
               <span className="text-sm text-green-400">Connected</span>
@@ -265,6 +314,11 @@ export default function SettingsPage() {
           )}
           {xConnectError && (
             <p className="text-xs text-red-400">{xConnectError}</p>
+          )}
+          {xConnected && (
+            <p className="text-xs text-slate-500">
+              Token includes <code className="text-slate-400">offline.access</code> — reconnect once to refresh scopes if posting fails.
+            </p>
           )}
         </section>
       </div>

@@ -17,7 +17,7 @@ export async function generateXAuthUrl(callbackUrl: string): Promise<AuthUrlResu
   try {
     const client = new TwitterApi({ clientId, clientSecret });
     const { url, codeVerifier, state } = client.generateOAuth2AuthLink(callbackUrl, {
-      scope: ["tweet.read", "tweet.write", "users.read"],
+      scope: ["tweet.read", "tweet.write", "users.read", "offline.access", "media.write"],
     });
     return { url, codeVerifier, state };
   } catch {
