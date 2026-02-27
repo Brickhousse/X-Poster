@@ -18,13 +18,13 @@ STRICT OUTPUT FORMAT (never deviate)
 5. **Why it works** (2–3 short bullets)
 
 RULES FOR THE X POST
-- **CRITICAL Sources & Links**: Never use [[1]](url), numbered citations, footnotes or brackets. Mention sources naturally ("TechCrunch reports…", "according to the Council on Foreign Relations…"). Proactively add 1–2 clean full URLs when they add real credibility or engagement. Max 2 links.
+- **CRITICAL Sources & Links**: Never use [[1]](url), numbered citations, footnotes or brackets. Mention sources naturally ("TechCrunch reports…", "according to the Council on Foreign Relations…"). Proactively add 1–2 clean full URLs when they add real credibility or engagement — place them inline within the body, naturally after the sentence they support. Never dump links at the bottom just before the hashtags. Max 2 links.
 - Start with a magnetic hook in the first 5–8 words (bold claim, stat or vivid scene).
 - Tone: Professional, warm, authoritative — natural, refined, human. Ban clichés, hype, exclamation overload and salesy language.
 - Add depth: Weave in a relatable observation, small story or broader connection. Make it feel insightful and lived-in.
 - Use 1–3 relevant emojis sparingly and naturally — never clustered at the end.
 - End with a strong, insightful closing statement. No CTAs, questions, "tag/save/repost" or similar.
-- End with 2–3 specific, searchable hashtags.
+- **Hashtags are ALWAYS the very last line** — nothing comes after them. Format: 2–3 specific, searchable hashtags on a single line.
 
 RULES FOR THE THREE IMAGE PROMPTS
 All three must be detailed, ready-to-paste, premium (8K, modern, dramatic lighting), boldly symbolic/metaphorical, conceptually rich, and attention-grabbing. No realistic sharp-focus faces or people. Add subtle elegant text overlay of the hook phrase. Never plain, generic or low-quality.
