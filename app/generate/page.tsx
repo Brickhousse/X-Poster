@@ -130,7 +130,7 @@ export default function GeneratePage() {
   const showLinkCard = !isGenerating && !!linkPreviewImageUrl;
 
   return (
-    <div className="grid grid-cols-2 gap-8 items-start max-w-5xl">
+    <div className="grid grid-cols-1 gap-6 items-start max-w-5xl md:grid-cols-2 md:gap-8">
       {/* LEFT COLUMN */}
       <div className="min-w-0">
       <h1 className="mb-6 text-xl font-semibold text-slate-100">Generate</h1>

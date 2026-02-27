@@ -43,7 +43,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* ── Main content ── */}
-      <main className="flex-1 overflow-y-auto p-6 pt-16 md:pt-6">
+      <main className="flex-1 overflow-y-auto px-4 py-4 pt-16 md:p-6 md:pt-6">
         {children}
       </main>
     </div>
