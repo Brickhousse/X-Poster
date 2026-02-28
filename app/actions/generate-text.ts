@@ -214,7 +214,7 @@ export async function generateText(
     if (exclusions.length > 0) {
       const list = exclusions
         .map((r) => {
-          const hook = r.text ? r.text.split("\n")[0].slice(0, 120) : null;
+          const hook = r.text ? [...r.text.split("\n")[0]].slice(0, 120).join("") : null;
           return hook
             ? `- Topic: "${r.prompt}" → Hook: "${hook}"`
             : `- Topic: "${r.prompt}"`;
