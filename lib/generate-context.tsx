@@ -68,6 +68,7 @@ interface GenerateState {
   handleRegenerateImage: (overridePrompts?: [string, string, string]) => Promise<void>;
   handleRegenerateOneImage: (style: 0 | 1 | 2) => Promise<void>;
   clearLinkPreview: () => void;
+  triggerLinkPreview: (url: string) => Promise<void>;
   // allow history page to prefill state
   prefill: (opts: { prompt?: string; text?: string; imageUrls?: string[]; imagePrompt?: string }) => void;
 }
@@ -483,6 +484,22 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const triggerLinkPreview = async (url: string) => {
+    setIsFetchingLinkPreview(true);
+    const res = await fetchLinkPreview(url);
+    if (!("error" in res)) {
+      if (res.imageUrl) {
+        setLinkPreviewImageUrl(res.imageUrl);
+        setSelectedImage("link");
+      }
+      if (res.videoUrl) {
+        setLinkPreviewVideoUrl(res.videoUrl);
+        setSelectedImage("link-video");
+      }
+    }
+    setIsFetchingLinkPreview(false);
+  };
+
   const handleRegenerateImage = async (overridePrompts?: [string, string, string]) => {
     setIsRegeneratingImage(true);
     const hasEdits = !!(editedText && generatedText && editedText !== generatedText);
@@ -636,7 +653,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedPoolIndex, setCustomImageUrl,
       promptOverride, hasPromptOverride, setPromptOverride,
       onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage, handleRegenerateOneImage,
-      clearLinkPreview, prefill,
+      clearLinkPreview, triggerLinkPreview, prefill,
     }}>
       {children}
     </GenerateContext.Provider>

@@ -24,7 +24,7 @@ export default function GeneratePage() {
     customImageUrl, setCustomImageUrl,
     hasPromptOverride, promptOverride,
     onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage, handleRegenerateOneImage,
-    clearLinkPreview, prefill,
+    clearLinkPreview, triggerLinkPreview, prefill,
   } = useGenerate();
 
   const [showImageModal, setShowImageModal] = useState(false);
@@ -141,16 +141,25 @@ export default function GeneratePage() {
     e.target.value = "";
   };
 
+  const isLinkPreviewUrl = (url: string) =>
+    /^https?:\/\/(twitter\.com|x\.com)\/(i\/status|[^/?#]+\/status)\/\d+/i.test(url) ||
+    /(?:youtube\.com\/watch\?(?:[^&]*&)*v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/i.test(url);
+
   const handleCustomUrl = () => {
     const url = customUrlInput.trim();
     if (!url) return;
     try {
       new URL(url);
-      setCustomImageUrl(url);
-      setSelectedImage("custom");
       setCustomUploadError("");
+      if (isLinkPreviewUrl(url)) {
+        setCustomUrlInput("");
+        triggerLinkPreview(url);
+      } else {
+        setCustomImageUrl(url);
+        setSelectedImage("custom");
+      }
     } catch {
-      setCustomUploadError("Invalid image URL.");
+      setCustomUploadError("Invalid URL.");
     }
   };
 
@@ -445,7 +454,7 @@ export default function GeneratePage() {
                     onChange={(e) => setCustomUrlInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") handleCustomUrl(); }}
                     onBlur={handleCustomUrl}
-                    placeholder="or paste image URL…"
+                    placeholder="or paste image or video URL…"
                     className="min-w-0 flex-1 rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-slate-100 placeholder-slate-600 outline-none focus:border-slate-500"
                   />
                 </div>
