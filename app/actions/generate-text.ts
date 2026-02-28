@@ -64,7 +64,7 @@ function buildSystemPrompt(override?: PromptOverride | null): string {
     userPrefsPart || brandVoicePart ? `${userPrefsPart}${brandVoicePart}` : "";
 
   const xVideoSearchPart = override?.xVideoSearch === true
-    ? `- **X VIDEO SEARCH (REQUIRED)**: Use your web_search tool to find one recent, relevant video about the user's topic — preferably a native X/Twitter video post, but a YouTube video shared widely on X is also acceptable. You MUST include its clean URL inline in the X Post body (after a relevant sentence, before the hashtags). Do NOT add the /video/1 suffix. Only omit if absolutely no relevant video exists anywhere on the web.
+    ? `- **X VIDEO SEARCH**: Use your web_search tool to find a video that **directly shows the specific event, moment, or clip** referenced in the post. Before including any URL, verify the video title and description confirm it actually depicts that exact scene — not just the same creator, game, or topic. If no video exists that directly matches the specific claim, either reframe the post so it does not reference a clip, or omit the link entirely. Never include a URL for a video that does not visually match what the post describes.
 `
     : "";
 
