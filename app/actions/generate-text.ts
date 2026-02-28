@@ -231,24 +231,20 @@ export async function generateText(
   }
 
   try {
-    const requestBody = JSON.stringify({
-      model: "grok-4-1-fast-reasoning",
-      input: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage },
-      ],
-      tools: [{ type: "web_search" }],
-    });
-    console.error("Grok request body length:", requestBody.length);
-    console.error("Grok chars 6770-6840:", JSON.stringify(requestBody.slice(6770, 6840)));
-
     const res = await fetch(GROK_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${grokApiKey}`,
       },
-      body: requestBody,
+      body: JSON.stringify({
+        model: "grok-4-1-fast-reasoning",
+        input: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage },
+        ],
+        tools: [{ type: "web_search" }],
+      }),
     });
 
     if (!res.ok) {
