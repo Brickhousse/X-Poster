@@ -404,7 +404,7 @@ export default function GeneratePage() {
                   ) : (
                     <div className="h-24 w-full rounded bg-slate-800" />
                   )}
-                  <p className="mt-1 text-center text-xs text-slate-400 leading-tight">Link preview</p>
+                  <p className="mt-1 text-center text-xs text-slate-400 leading-tight">X Image</p>
                 </button>
               )}
               {showLinkVideoCard && (
@@ -430,7 +430,7 @@ export default function GeneratePage() {
                     />
                   )}
                   <p className="mt-1 text-center text-xs text-slate-400 leading-tight">
-                    {isXEmbedUrl(linkPreviewVideoUrl!) ? "X video" : "Link video"}
+                    {isXEmbedUrl(linkPreviewVideoUrl!) ? "X Video" : "Link Video"}
                   </p>
                 </button>
               )}
