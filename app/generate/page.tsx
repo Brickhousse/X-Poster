@@ -171,16 +171,16 @@ export default function GeneratePage() {
     <div className="grid grid-cols-1 gap-6 items-start max-w-5xl md:grid-cols-2 md:gap-8">
       {/* LEFT COLUMN */}
       <div className="min-w-0">
-        <div className="mb-6 flex items-center gap-2">
-          <h1 className="text-xl font-semibold text-slate-100">Generate</h1>
-          <span className="text-xs text-slate-600">grok-4-1-fast-reasoning</span>
-        </div>
+        <h1 className="mb-6 text-xl font-semibold text-slate-100">Generate</h1>
 
         <form onSubmit={handleSubmit((v) => onSubmit(v, false))} className="space-y-4">
           <div className="space-y-1">
-            <label htmlFor="prompt" className="block text-sm text-slate-400">
-              What do you want to post about?
-            </label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="prompt" className="text-sm text-slate-400">
+                What do you want to post about?
+              </label>
+              <span className="text-xs text-slate-600">Model: grok-4-1-fast-reasoning</span>
+            </div>
             <textarea
               id="prompt"
               rows={4}
