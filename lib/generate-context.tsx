@@ -53,7 +53,7 @@ interface GenerateState {
   setSelectedImage: (v: "generated" | "link" | "custom" | "none") => void;
   setCustomImageUrl: (v: string | null) => void;
   setSelectedPoolIndex: (v: number | null) => void;
-  onSubmit: (values: GenerateFormValues) => Promise<void>;
+  onSubmit: (values: GenerateFormValues, textFirst?: boolean) => Promise<void>;
   handleApproveAndPost: () => Promise<void>;
   handleSchedule: (scheduledFor: string) => void;
   handleDiscard: () => void;
@@ -178,7 +178,10 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     if (imagePrompt) setLastImagePrompts([imagePrompt, imagePrompt, imagePrompt]);
   };
 
-  const onSubmit = async (values: GenerateFormValues) => {
+  const onSubmit = async (values: GenerateFormValues, textFirst?: boolean) => {
+    const isTextFirst = textFirst !== undefined ? textFirst : textFirstMode;
+    if (textFirst !== undefined) setTextFirstMode(textFirst);
+
     // Capture before any state resets so novelty directive can exclude current draft
     const inSessionDraft = noveltyMode && editedText
       ? { text: editedText, prompt: lastPrompt || values.prompt }
@@ -197,7 +200,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     setLastPrompt(values.prompt);
 
     // Reset pool
-    if (!textFirstMode) {
+    if (!isTextFirst) {
       poolEntryId.current = 0;
       setImagePool([makeLoadingEntry(0), makeLoadingEntry(1), makeLoadingEntry(2)]);
       setSelectedPoolIndex(0);
@@ -237,7 +240,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       }
 
       // ── Text-first: save draft with no images, then stop ──────────────
-      if (textFirstMode) {
+      if (isTextFirst) {
         if (resolvedText) {
           const result = await addHistoryItem({
             prompt: values.prompt,

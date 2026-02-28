@@ -18,7 +18,7 @@ export default function GeneratePage() {
     editedText, charLimit,
     linkPreviewImageUrl, isFetchingLinkPreview, selectedImage,
     noveltyMode, setNoveltyMode,
-    textFirstMode, setTextFirstMode, isGeneratingImages, handleGenerateImages,
+    textFirstMode, isGeneratingImages, handleGenerateImages,
     setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedPoolIndex,
     customImageUrl, setCustomImageUrl,
     onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage, handleRegenerateOneImage,
@@ -158,7 +158,7 @@ export default function GeneratePage() {
       <div className="min-w-0">
       <h1 className="mb-6 text-xl font-semibold text-slate-100">Generate</h1>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit((v) => onSubmit(v, false))} className="space-y-4">
         <div className="space-y-1">
           <label htmlFor="prompt" className="block text-sm text-slate-400">
             What do you want to post about?
@@ -175,38 +175,23 @@ export default function GeneratePage() {
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="submit"
             disabled={isGenerating}
             className="flex items-center gap-2 rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isGenerating && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isGenerating ? "Generating…" : "Generate"}
+            {isGenerating && !textFirstMode && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isGenerating && !textFirstMode ? "Generating…" : "Generate All"}
           </button>
           <button
             type="button"
-            onClick={() => setNoveltyMode(!noveltyMode)}
-            className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
-              noveltyMode
-                ? "border-violet-500 bg-violet-500/10 text-violet-400"
-                : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
-            }`}
+            onClick={handleSubmit((v) => onSubmit(v, true))}
+            disabled={isGenerating}
+            className="flex items-center gap-2 rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Shuffle className="h-3 w-3" />
-            Fresh topics
-          </button>
-          <button
-            type="button"
-            onClick={() => setTextFirstMode(!textFirstMode)}
-            className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
-              textFirstMode
-                ? "border-cyan-500 bg-cyan-500/10 text-cyan-400"
-                : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
-            }`}
-          >
-            <MessageCircle className="h-3 w-3" />
-            Text first
+            {isGenerating && textFirstMode && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isGenerating && textFirstMode ? "Generating…" : "Generate Text"}
           </button>
           {(editedText || anyImageUrl || textError || imagePool.some((e) => e.error !== null)) && (
             <button
@@ -218,6 +203,20 @@ export default function GeneratePage() {
               Reset
             </button>
           )}
+          <div className="ml-2">
+            <button
+              type="button"
+              onClick={() => setNoveltyMode(!noveltyMode)}
+              className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                noveltyMode
+                  ? "border-violet-500 bg-violet-500/10 text-violet-400"
+                  : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+              }`}
+            >
+              <Shuffle className="h-3 w-3" />
+              Fresh topics
+            </button>
+          </div>
         </div>
       </form>
 
