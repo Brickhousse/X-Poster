@@ -153,6 +153,7 @@ export default function GeneratePage() {
   };
   const showLinkImageCard = !isGenerating && !!linkPreviewImageUrl;
   const showLinkVideoCard = !isGenerating && !!linkPreviewVideoUrl;
+  const isXPostUrl = (url: string) => /^https?:\/\/(twitter\.com|x\.com)\/(i\/status|[^/?#]+\/status)\/\d+/i.test(url);
 
   return (
     <div className="grid grid-cols-1 gap-6 items-start max-w-5xl md:grid-cols-2 md:gap-8">
@@ -455,13 +456,21 @@ export default function GeneratePage() {
                     : "border-slate-700 hover:border-slate-500"
                 }`}
               >
-                <video
-                  src={linkPreviewVideoUrl!}
-                  className="h-24 w-full rounded object-cover"
-                  muted
-                  playsInline
-                />
-                <p className="mt-1 text-center text-xs text-slate-400 leading-tight">Link video</p>
+                {isXPostUrl(linkPreviewVideoUrl!) ? (
+                  <div className="h-24 w-full rounded bg-slate-800 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-slate-300">𝕏</span>
+                  </div>
+                ) : (
+                  <video
+                    src={linkPreviewVideoUrl!}
+                    className="h-24 w-full rounded object-cover"
+                    muted
+                    playsInline
+                  />
+                )}
+                <p className="mt-1 text-center text-xs text-slate-400 leading-tight">
+                  {isXPostUrl(linkPreviewVideoUrl!) ? "X embed" : "Link video"}
+                </p>
               </button>
             )}
           </div>
@@ -544,13 +553,20 @@ export default function GeneratePage() {
                 </span>
               </button>
             ) : selectedImage === "link-video" && linkPreviewVideoUrl ? (
-              <video
-                src={linkPreviewVideoUrl}
-                className="w-full rounded-md border border-slate-700"
-                controls
-                muted
-                playsInline
-              />
+              isXPostUrl(linkPreviewVideoUrl) ? (
+                <div className="w-full rounded-md border border-slate-700 bg-slate-800 flex items-center justify-center gap-3 py-6">
+                  <span className="text-3xl font-bold text-slate-300">𝕏</span>
+                  <p className="text-sm text-slate-400">X post will embed when posted</p>
+                </div>
+              ) : (
+                <video
+                  src={linkPreviewVideoUrl}
+                  className="w-full rounded-md border border-slate-700"
+                  controls
+                  muted
+                  playsInline
+                />
+              )
             ) : null;
           })()}
 
@@ -614,13 +630,20 @@ export default function GeneratePage() {
                 <img src={linkPreviewImageUrl} alt="Link preview image" className="w-full object-cover" />
               </button>
             ) : selectedImage === "link-video" && linkPreviewVideoUrl ? (
-              <video
-                src={linkPreviewVideoUrl}
-                className="w-full rounded-xl"
-                controls
-                muted
-                playsInline
-              />
+              isXPostUrl(linkPreviewVideoUrl) ? (
+                <div className="w-full rounded-xl border border-slate-800 bg-slate-800/50 flex items-center justify-center gap-3 py-5">
+                  <span className="text-2xl font-bold text-slate-300">𝕏</span>
+                  <p className="text-sm text-slate-500">X post embed</p>
+                </div>
+              ) : (
+                <video
+                  src={linkPreviewVideoUrl}
+                  className="w-full rounded-xl"
+                  controls
+                  muted
+                  playsInline
+                />
+              )
             ) : activeImageUrl ? (
               <button
                 type="button"

@@ -8,6 +8,13 @@ export async function fetchLinkPreview(
 ): Promise<{ imageUrl: string | null; videoUrl: string | null } | { error: string }> {
   const parsed = schema.safeParse({ url });
   if (!parsed.success) return { error: "Invalid URL" };
+
+  // X/Twitter post URLs auto-embed when included in a tweet — no need to scrape
+  const xPostPattern = /^https?:\/\/(twitter\.com|x\.com)\/(i\/status|[^/?#]+\/status)\/\d+/i;
+  if (xPostPattern.test(parsed.data.url)) {
+    return { imageUrl: null, videoUrl: parsed.data.url };
+  }
+
   try {
     const res = await fetch(parsed.data.url, {
       headers: { "User-Agent": "Twitterbot/1.0" },

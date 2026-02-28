@@ -35,10 +35,13 @@ export async function postTweet(text: string, imageUrl?: string): Promise<PostRe
 
   const xAccessToken = decrypt(creds.x_access_token as string);
 
+  const isXPostUrl = (url: string) =>
+    /^https?:\/\/(twitter\.com|x\.com)\/(i\/status|[^/?#]+\/status)\/\d+/i.test(url);
+
   try {
     const client = new TwitterApi(xAccessToken);
 
-    if (parsed.data.imageUrl) {
+    if (parsed.data.imageUrl && !isXPostUrl(parsed.data.imageUrl)) {
       const imgRes = await fetch(parsed.data.imageUrl);
       if (!imgRes.ok) {
         return { error: `Could not fetch media (${imgRes.status}). The URL may have expired — try regenerating.` };
