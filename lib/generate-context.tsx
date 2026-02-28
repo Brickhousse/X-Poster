@@ -6,7 +6,10 @@ import { generateImage } from "@/app/actions/generate-image";
 import { postTweet } from "@/app/actions/post-tweet";
 import { fetchLinkPreview } from "@/app/actions/fetch-link-preview";
 import { addHistoryItem, updateHistoryItem, appendHistoryImage, updateHistoryImages } from "@/app/actions/history";
+import { getSettings } from "@/app/actions/get-settings";
 import type { GenerateFormValues } from "@/lib/generation-schema";
+import type { PromptOverride } from "@/lib/prompt-override-schema";
+import { isNonDefaultOverride } from "@/lib/prompt-override-schema";
 
 export interface ImageEntry {
   id: number;        // unique per session, from incrementing ref
@@ -54,6 +57,9 @@ interface GenerateState {
   setSelectedImage: (v: "generated" | "link" | "link-video" | "custom" | "none") => void;
   setCustomImageUrl: (v: string | null) => void;
   setSelectedPoolIndex: (v: number | null) => void;
+  promptOverride: PromptOverride | null;
+  hasPromptOverride: boolean;
+  setPromptOverride: (v: PromptOverride | null) => void;
   onSubmit: (values: GenerateFormValues, textFirst?: boolean) => Promise<void>;
   handleApproveAndPost: () => Promise<void>;
   handleSchedule: (scheduledFor: string) => void;
@@ -94,7 +100,17 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   const [noveltyMode, setNoveltyMode] = useState(false);
   const [textFirstMode, setTextFirstMode] = useState(false);
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
+  const [promptOverride, setPromptOverride] = useState<PromptOverride | null>(null);
   const currentHistoryId = useRef<string | null>(null);
+
+  // Load prompt override from settings on mount
+  useEffect(() => {
+    getSettings().then((s) => {
+      if (s.promptOverride) setPromptOverride(s.promptOverride);
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const hasPromptOverride = isNonDefaultOverride(promptOverride);
 
   const makeLoadingEntry = (style: 0 | 1 | 2): ImageEntry => ({
     id: poolEntryId.current++,
@@ -567,6 +583,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       noveltyMode, setNoveltyMode,
       textFirstMode, setTextFirstMode, isGeneratingImages, handleGenerateImages,
       setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedPoolIndex, setCustomImageUrl,
+      promptOverride, hasPromptOverride, setPromptOverride,
       onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage, handleRegenerateOneImage,
       clearLinkPreview, prefill,
     }}>

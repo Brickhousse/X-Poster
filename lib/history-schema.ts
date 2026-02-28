@@ -1,3 +1,5 @@
+import type { PromptOverride } from "@/lib/prompt-override-schema";
+
 export type HistoryItemStatus = "draft" | "posted" | "scheduled";
 
 export interface HistoryItem {
@@ -13,4 +15,5 @@ export interface HistoryItem {
   scheduledFor?: string; // ISO 8601
   pinned?: boolean; // undefined = false (legacy rows before column existed)
   imageUrls?: string[]; // all Storage URLs (up to 3); may be absent for legacy rows
+  promptOverride?: PromptOverride | null; // snapshot of override used at generation time
 }

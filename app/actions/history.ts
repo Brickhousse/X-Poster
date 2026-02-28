@@ -25,6 +25,7 @@ function dbRowToHistoryItem(row: Record<string, unknown>): HistoryItem {
     postedAt: (row.posted_at as string | null) ?? undefined,
     scheduledFor: (row.scheduled_for as string | null) ?? undefined,
     pinned: (row.pinned as boolean | null) ?? false,
+    promptOverride: (row.prompt_override as import("@/lib/prompt-override-schema").PromptOverride | null) ?? undefined,
   };
 }
 
@@ -32,19 +33,29 @@ export async function addHistoryItem(item: AddInput): Promise<AddResult> {
   const { userId } = await auth();
   if (!userId) return { error: "Not authenticated." };
 
+  const supabase = getSupabaseClient();
+
+  // Fetch prompt_override snapshot and upload images in parallel
+  const [uploadResults, settingsResult] = await Promise.all([
+    item.allImageUrls && item.allImageUrls.length > 0
+      ? Promise.all(item.allImageUrls.map((u) => uploadImageFromUrl(u, userId)))
+      : Promise.resolve([] as (string | null)[]),
+    supabase
+      .from("user_settings")
+      .select("prompt_override")
+      .eq("user_id", userId)
+      .single(),
+  ]);
+
   // Upload all provided Grok URLs to Storage in parallel
-  const storageUrls: string[] = [];
-  if (item.allImageUrls && item.allImageUrls.length > 0) {
-    const results = await Promise.all(
-      item.allImageUrls.map((u) => uploadImageFromUrl(u, userId))
-    );
-    storageUrls.push(...results.filter((u): u is string => u !== null));
-  }
+  const storageUrls = uploadResults.filter((u): u is string => u !== null);
+
+  const promptOverrideSnapshot =
+    (settingsResult.data?.prompt_override as import("@/lib/prompt-override-schema").PromptOverride | null) ?? null;
 
   // Use first Storage URL as canonical image_url (overrides ephemeral Grok URL)
   const canonicalImageUrl = storageUrls[0] ?? item.imageUrl ?? null;
 
-  const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("posts")
     .insert({
@@ -59,6 +70,7 @@ export async function addHistoryItem(item: AddInput): Promise<AddResult> {
       posted_at: item.postedAt ?? null,
       scheduled_for: item.scheduledFor ?? null,
       created_at: item.createdAt,
+      prompt_override: promptOverrideSnapshot,
     })
     .select("id")
     .single();

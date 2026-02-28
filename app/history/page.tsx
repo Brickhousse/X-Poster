@@ -7,7 +7,9 @@ import {
   MessageCircle, Repeat2, Heart, BarChart2,
 } from "lucide-react";
 import { getHistory, deleteHistoryItem, updateHistoryItem } from "@/app/actions/history";
+import { saveSettings } from "@/app/actions/save-settings";
 import { postTweet } from "@/app/actions/post-tweet";
+import { useGenerate } from "@/lib/generate-context";
 import type { HistoryItem, HistoryItemStatus } from "@/lib/history-schema";
 
 function formatDate(iso: string): string {
@@ -35,6 +37,7 @@ function isOverdue(item: HistoryItem): boolean {
 
 export default function HistoryPage() {
   const router = useRouter();
+  const { setPromptOverride } = useGenerate();
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -75,7 +78,13 @@ export default function HistoryPage() {
     if (selectedId === id) setSelectedId(null);
   };
 
-  const handleUseAgain = (item: HistoryItem) => {
+  const handleUseAgain = async (item: HistoryItem) => {
+    // Restore prompt override snapshot if the history item has one
+    if ("promptOverride" in item) {
+      const override = item.promptOverride ?? null;
+      await saveSettings({ promptOverride: override });
+      setPromptOverride(override);
+    }
     const params = new URLSearchParams({ prompt: item.prompt });
     if (item.editedText) params.set("text", item.editedText);
     if (item.imagePrompt) params.set("imagePrompt", item.imagePrompt);

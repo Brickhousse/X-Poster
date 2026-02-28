@@ -4,10 +4,12 @@ import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { getSupabaseClient } from "@/lib/supabase";
 import { encrypt } from "@/lib/encryption";
+import { promptOverrideSchema } from "@/lib/settings-schema";
 
 const schema = z.object({
   xTier: z.enum(["free", "premium"]).optional(),
   openaiApiKey: z.string().max(200).optional(),
+  promptOverride: promptOverrideSchema.optional(),
 });
 
 type SaveSettingsResult = { ok: true } | { error: string };
@@ -15,6 +17,7 @@ type SaveSettingsResult = { ok: true } | { error: string };
 export async function saveSettings(input: {
   xTier?: "free" | "premium";
   openaiApiKey?: string;
+  promptOverride?: z.infer<typeof promptOverrideSchema>;
 }): Promise<SaveSettingsResult> {
   const { userId } = await auth();
   if (!userId) return { error: "Not authenticated." };
@@ -34,6 +37,9 @@ export async function saveSettings(input: {
     upsertData.openai_api_key = parsed.data.openaiApiKey
       ? encrypt(parsed.data.openaiApiKey)
       : null;
+  }
+  if ("promptOverride" in parsed.data) {
+    upsertData.prompt_override = parsed.data.promptOverride ?? null;
   }
 
   const supabase = getSupabaseClient();

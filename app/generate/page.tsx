@@ -21,6 +21,7 @@ export default function GeneratePage() {
     textFirstMode, isGeneratingImages, handleGenerateImages,
     setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedPoolIndex,
     customImageUrl, setCustomImageUrl,
+    hasPromptOverride,
     onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage, handleRegenerateOneImage,
     clearLinkPreview, prefill,
   } = useGenerate();
@@ -48,7 +49,6 @@ export default function GeneratePage() {
     const prefilledPrompt = params.get("prompt");
     const prefilledText = params.get("text");
     const prefilledImagePrompt = params.get("imagePrompt");
-    // Collect all imageUrl1, imageUrl2, ... imageUrlN params (also accept legacy imageUrl)
     const prefilledImageUrls: string[] = [];
     const legacyUrl = params.get("imageUrl");
     if (legacyUrl) prefilledImageUrls.push(legacyUrl);
@@ -61,7 +61,6 @@ export default function GeneratePage() {
     if (prefilledPrompt) {
       setValue("prompt", prefilledPrompt);
     } else {
-      // Restore prompt from sessionStorage (persists across tab switches)
       try {
         const raw = sessionStorage.getItem("xposter_generate_draft");
         if (raw) {
@@ -77,7 +76,6 @@ export default function GeneratePage() {
         imageUrls: prefilledImageUrls,
         imagePrompt: prefilledImagePrompt ?? undefined,
       });
-      // Only regenerate if there are no stored images to show
       if (prefilledImagePrompt && !hasStoredImages) {
         const prompts: [string, string, string] = [prefilledImagePrompt, prefilledImagePrompt, prefilledImagePrompt];
         handleRegenerateImage(prompts);
@@ -151,427 +149,310 @@ export default function GeneratePage() {
       setCustomUploadError("Invalid image URL.");
     }
   };
+
   const showLinkImageCard = !isGenerating && !!linkPreviewImageUrl;
   const showLinkVideoCard = !isGenerating && !!linkPreviewVideoUrl;
   const isXPostUrl = (url: string) => /^https?:\/\/(twitter\.com|x\.com)\/(i\/status|[^/?#]+\/status)\/\d+/i.test(url);
+
+  const showActions = (generatedText !== null || textError || imagePool.length > 0) && !isGenerating;
 
   return (
     <div className="grid grid-cols-1 gap-6 items-start max-w-5xl md:grid-cols-2 md:gap-8">
       {/* LEFT COLUMN */}
       <div className="min-w-0">
-      <h1 className="mb-6 text-xl font-semibold text-slate-100">Generate</h1>
+        <h1 className="mb-6 text-xl font-semibold text-slate-100">Generate</h1>
 
-      <form onSubmit={handleSubmit((v) => onSubmit(v, false))} className="space-y-4">
-        <div className="space-y-1">
-          <label htmlFor="prompt" className="block text-sm text-slate-400">
-            What do you want to post about?
-          </label>
-          <textarea
-            id="prompt"
-            rows={4}
-            {...register("prompt")}
-            placeholder="e.g. The impact of AI on software development in 2025"
-            className="w-full resize-none rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
-          />
-          {errors.prompt && (
-            <p className="text-xs text-red-400">{errors.prompt.message}</p>
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="submit"
-            disabled={isGenerating}
-            className="flex items-center gap-2 rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isGenerating && !textFirstMode && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isGenerating && !textFirstMode ? "Generating…" : "Generate All"}
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit((v) => onSubmit(v, true))}
-            disabled={isGenerating}
-            className="flex items-center gap-2 rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isGenerating && textFirstMode && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isGenerating && textFirstMode ? "Generating…" : "Generate Text"}
-          </button>
-          {(editedText || anyImageUrl || textError || imagePool.some((e) => e.error !== null)) && (
-            <button
-              type="button"
-              onClick={handleDiscard}
-              disabled={isGenerating || isPosting}
-              className="rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Reset
-            </button>
-          )}
-          <div className="ml-2">
-            <button
-              type="button"
-              onClick={() => setNoveltyMode(!noveltyMode)}
-              className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
-                noveltyMode
-                  ? "border-violet-500 bg-violet-500/10 text-violet-400"
-                  : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
-              }`}
-            >
-              <Shuffle className="h-3 w-3" />
-              Fresh topics
-            </button>
+        <form onSubmit={handleSubmit((v) => onSubmit(v, false))} className="space-y-4">
+          <div className="space-y-1">
+            <label htmlFor="prompt" className="block text-sm text-slate-400">
+              What do you want to post about?
+            </label>
+            <textarea
+              id="prompt"
+              rows={4}
+              {...register("prompt")}
+              placeholder="e.g. The impact of AI on software development in 2025"
+              className="w-full resize-none rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
+            />
+            {errors.prompt && (
+              <p className="text-xs text-red-400">{errors.prompt.message}</p>
+            )}
           </div>
-        </div>
-      </form>
 
-      {/* Missing API key notice */}
-      {missingKey && (
-        <p className="mt-4 text-sm text-amber-400">
-          Grok API key not set.{" "}
-          <a href="/settings" className="underline hover:text-amber-200">
-            Go to Settings →
-          </a>
-        </p>
-      )}
-
-      {/* Text result */}
-      {(isGenerating || generatedText !== null || textError) && (
-        <div className="mt-6 space-y-2">
-          <h2 className="text-sm font-medium text-slate-300">Generated post</h2>
-          {isGenerating && !generatedText && !textError ? (
-            <div className="h-20 animate-pulse rounded-md bg-slate-800" />
-          ) : textError ? (
-            <p className="text-sm text-red-400">{textError}</p>
-          ) : (
-            <div className="space-y-1">
-              <textarea
-                rows={8}
-                value={editedText}
-                onChange={(e) => setEditedText(e.target.value)}
-                className="w-full resize-none rounded-md border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-100 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
-              />
-              <p className={`text-right text-xs ${charCountColor}`}>
-                {editedText.length}/{charLimit.toLocaleString()}
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Generate images — Text-first mode only */}
-      {textFirstMode && generatedText !== null && imagePool.length === 0 && !isGenerating && (
-        <div className="mt-4">
-          <button
-            type="button"
-            onClick={handleGenerateImages}
-            disabled={isGeneratingImages}
-            className="flex items-center gap-2 rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isGeneratingImages && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isGeneratingImages ? "Generating images…" : "Generate images"}
-          </button>
-        </div>
-      )}
-
-      {/* Actions row — shown once generation completes */}
-      {(generatedText !== null || textError || imagePool.length > 0) && !isGenerating && (
-        <div className="mt-6 space-y-3">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              type="button"
-              onClick={handleApproveAndPost}
-              disabled={isPosting || !!postSuccess}
+              type="submit"
+              disabled={isGenerating}
               className="flex items-center gap-2 rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isPosting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isPosting ? "Posting…" : "Approve & Post"}
+              {isGenerating && !textFirstMode && <Loader2 className="h-4 w-4 animate-spin" />}
+              {isGenerating && !textFirstMode ? "Generating…" : "Generate All"}
             </button>
             <button
               type="button"
-              onClick={handleDiscard}
-              disabled={isPosting}
-              className="rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleSubmit((v) => onSubmit(v, true))}
+              disabled={isGenerating}
+              className="flex items-center gap-2 rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Discard
+              {isGenerating && textFirstMode && <Loader2 className="h-4 w-4 animate-spin" />}
+              {isGenerating && textFirstMode ? "Generating…" : "Generate Text"}
+            </button>
+            {(editedText || anyImageUrl || textError || imagePool.some((e) => e.error !== null)) && (
+              <button
+                type="button"
+                onClick={handleDiscard}
+                disabled={isGenerating || isPosting}
+                className="rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Reset
+              </button>
+            )}
+            <div className="ml-2">
+              <button
+                type="button"
+                onClick={() => setNoveltyMode(!noveltyMode)}
+                className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  noveltyMode
+                    ? "border-violet-500 bg-violet-500/10 text-violet-400"
+                    : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                }`}
+              >
+                <Shuffle className="h-3 w-3" />
+                Fresh topics
+              </button>
+            </div>
+          </div>
+        </form>
+
+        {/* Prompt Override active badge */}
+        {hasPromptOverride && (
+          <a
+            href="/settings?tab=prompt-override"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-violet-500/40 bg-violet-500/10 px-3 py-1 text-xs font-medium text-violet-400 hover:bg-violet-500/20 transition-colors"
+          >
+            ⚡ Prompt Override active
+          </a>
+        )}
+
+        {/* Missing API key notice */}
+        {missingKey && (
+          <p className="mt-4 text-sm text-amber-400">
+            Grok API key not set.{" "}
+            <a href="/settings" className="underline hover:text-amber-200">
+              Go to Settings →
+            </a>
+          </p>
+        )}
+
+        {/* Text result */}
+        {(isGenerating || generatedText !== null || textError) && (
+          <div className="mt-6 space-y-2">
+            <h2 className="text-sm font-medium text-slate-300">Generated post</h2>
+            {isGenerating && !generatedText && !textError ? (
+              <div className="h-20 animate-pulse rounded-md bg-slate-800" />
+            ) : textError ? (
+              <p className="text-sm text-red-400">{textError}</p>
+            ) : (
+              <div className="space-y-1">
+                <textarea
+                  rows={8}
+                  value={editedText}
+                  onChange={(e) => setEditedText(e.target.value)}
+                  className="w-full resize-none rounded-md border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-100 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
+                />
+                <p className={`text-right text-xs ${charCountColor}`}>
+                  {editedText.length}/{charLimit.toLocaleString()}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Generate images — Text-first mode only */}
+        {textFirstMode && generatedText !== null && imagePool.length === 0 && !isGenerating && (
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={handleGenerateImages}
+              disabled={isGeneratingImages}
+              className="flex items-center gap-2 rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isGeneratingImages && <Loader2 className="h-4 w-4 animate-spin" />}
+              {isGeneratingImages ? "Generating images…" : "Generate images"}
             </button>
           </div>
+        )}
 
-          {/* Schedule toggle */}
-          {!postSuccess && !scheduleSuccess && (
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => setShowSchedule((v) => !v)}
-                className="text-xs text-slate-500 underline hover:text-slate-300"
-              >
-                {showSchedule ? "Cancel scheduling" : "Schedule for later"}
-              </button>
-              {showSchedule && (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="datetime-local"
-                    value={scheduledFor}
-                    onChange={(e) => setScheduledFor(e.target.value)}
-                    min={new Date().toISOString().slice(0, 16)}
-                    className="rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => { handleSchedule(scheduledFor); setShowSchedule(false); setScheduledFor(""); }}
-                    disabled={!scheduledFor}
-                    className="rounded-md border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Save schedule
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {scheduleSuccess && (
-            <p className="text-sm text-amber-400">
-              Scheduled. View in{" "}
-              <a href="/history" className="underline hover:text-amber-200">
-                History →
-              </a>
-            </p>
-          )}
-
-          {postSuccess && (
-            <p className="text-sm text-green-400">
-              Posted!{" "}
-              <a
-                href={postSuccess.tweetUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-green-200"
-              >
-                View on X →
-              </a>
-            </p>
-          )}
-          {postError && (
-            <p className="text-sm text-red-400">
-              {postError}{" "}
-              {(postError.includes("connect") || postError.includes("Settings")) && (
-                <a href="/settings" className="underline hover:text-red-200">
-                  Go to Settings →
-                </a>
-              )}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Image style selector — 3-card grid */}
-      {anyImageVisible && (
-        <div className="mt-6 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-slate-300">Choose an image or video</h2>
-            <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-500 hover:text-slate-300">
-              <input
-                type="radio"
-                name="imageChoice"
-                checked={selectedImage === "none"}
-                onChange={() => setSelectedImage("none")}
-                className="accent-slate-400"
-              />
-              No image
-            </label>
-          </div>
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-            {imagePool.map((entry, idx) => {
-              const isSelected = selectedImage === "generated" && selectedPoolIndex === idx;
-              return (
-                <button
-                  key={entry.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedPoolIndex(idx);
-                    setSelectedImage("generated");
-                  }}
-                  disabled={entry.loading || !!entry.error}
-                  className={`rounded-md border p-1.5 text-left transition-colors focus:outline-none disabled:cursor-default ${
-                    isSelected
-                      ? "border-slate-400 ring-2 ring-slate-400"
-                      : "border-slate-700 hover:border-slate-500"
-                  } ${entry.error ? "opacity-50" : ""}`}
-                >
-                  {entry.loading ? (
-                    <div className="h-24 w-full animate-pulse rounded bg-slate-800" />
-                  ) : entry.error ? (
-                    <div className="flex h-24 w-full items-center justify-center rounded bg-slate-800">
-                      <span className="text-xs text-red-400 text-center px-1">Failed</span>
-                    </div>
-                  ) : entry.url ? (
-                    <img
-                      src={entry.url}
-                      alt={SHORT_STYLE_LABELS[entry.style]}
-                      className="h-24 w-full rounded object-cover"
-                    />
-                  ) : (
-                    <div className="h-24 w-full rounded bg-slate-800" />
-                  )}
-                  <div className="mt-1 flex items-center justify-between px-0.5">
-                    <p className="text-xs text-slate-400 leading-tight">{SHORT_STYLE_LABELS[entry.style]}</p>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleRegenerateOneImage(entry.style); }}
-                      disabled={entry.loading || isGenerating || isRegeneratingImage || isRegeneratingStyle[entry.style]}
-                      className="text-slate-600 hover:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none"
-                      title={`Regenerate ${SHORT_STYLE_LABELS[entry.style]}`}
-                    >
-                      <RotateCcw className="h-3 w-3" />
-                    </button>
-                  </div>
-                </button>
-              );
-            })}
-            {showLinkImageCard && (
-              <button
-                type="button"
-                onClick={() => setSelectedImage("link")}
-                className={`rounded-md border p-1.5 text-left transition-colors focus:outline-none ${
-                  selectedImage === "link"
-                    ? "border-slate-400 ring-2 ring-slate-400"
-                    : "border-slate-700 hover:border-slate-500"
-                }`}
-              >
-                {isFetchingLinkPreview && !linkPreviewImageUrl ? (
-                  <div className="h-24 w-full animate-pulse rounded bg-slate-800" />
-                ) : linkPreviewImageUrl ? (
-                  <img src={linkPreviewImageUrl} alt="Link preview" className="h-24 w-full rounded object-cover" onError={clearLinkPreview} />
-                ) : (
-                  <div className="h-24 w-full rounded bg-slate-800" />
-                )}
-                <p className="mt-1 text-center text-xs text-slate-400 leading-tight">Link preview</p>
-              </button>
-            )}
-            {showLinkVideoCard && (
-              <button
-                type="button"
-                onClick={() => setSelectedImage("link-video")}
-                className={`rounded-md border p-1.5 text-left transition-colors focus:outline-none ${
-                  selectedImage === "link-video"
-                    ? "border-slate-400 ring-2 ring-slate-400"
-                    : "border-slate-700 hover:border-slate-500"
-                }`}
-              >
-                {isXPostUrl(linkPreviewVideoUrl!) ? (
-                  <div className="h-24 w-full rounded bg-slate-800 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-slate-300">𝕏</span>
-                  </div>
-                ) : (
-                  <video
-                    src={linkPreviewVideoUrl!}
-                    className="h-24 w-full rounded object-cover"
-                    muted
-                    playsInline
-                  />
-                )}
-                <p className="mt-1 text-center text-xs text-slate-400 leading-tight">
-                  {isXPostUrl(linkPreviewVideoUrl!) ? "X embed" : "Link video"}
-                </p>
-              </button>
-            )}
-          </div>
-
-          {!isGenerating && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <label className={`flex flex-shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 ${isUploadingCustomImage ? "pointer-events-none opacity-50" : ""}`}>
-                  {isUploadingCustomImage ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
-                  {isUploadingCustomImage ? "Uploading…" : "Upload"}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    disabled={isUploadingCustomImage}
-                    onChange={handleFileUpload}
-                  />
-                </label>
+        {/* Image style selector — 3-card grid */}
+        {anyImageVisible && (
+          <div className="mt-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-medium text-slate-300">Choose an image or video</h2>
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-500 hover:text-slate-300">
                 <input
-                  type="url"
-                  value={customUrlInput}
-                  onChange={(e) => setCustomUrlInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleCustomUrl(); }}
-                  onBlur={handleCustomUrl}
-                  placeholder="or paste image URL…"
-                  className="min-w-0 flex-1 rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-slate-100 placeholder-slate-600 outline-none focus:border-slate-500"
+                  type="radio"
+                  name="imageChoice"
+                  checked={selectedImage === "none"}
+                  onChange={() => setSelectedImage("none")}
+                  className="accent-slate-400"
                 />
-              </div>
-              {customImageUrl && (
+                No image
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+              {imagePool.map((entry, idx) => {
+                const isSelected = selectedImage === "generated" && selectedPoolIndex === idx;
+                return (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedPoolIndex(idx);
+                      setSelectedImage("generated");
+                    }}
+                    disabled={entry.loading || !!entry.error}
+                    className={`rounded-md border p-1.5 text-left transition-colors focus:outline-none disabled:cursor-default ${
+                      isSelected
+                        ? "border-slate-400 ring-2 ring-slate-400"
+                        : "border-slate-700 hover:border-slate-500"
+                    } ${entry.error ? "opacity-50" : ""}`}
+                  >
+                    {entry.loading ? (
+                      <div className="h-24 w-full animate-pulse rounded bg-slate-800" />
+                    ) : entry.error ? (
+                      <div className="flex h-24 w-full items-center justify-center rounded bg-slate-800">
+                        <span className="text-xs text-red-400 text-center px-1">Failed</span>
+                      </div>
+                    ) : entry.url ? (
+                      <img
+                        src={entry.url}
+                        alt={SHORT_STYLE_LABELS[entry.style]}
+                        className="h-24 w-full rounded object-cover"
+                      />
+                    ) : (
+                      <div className="h-24 w-full rounded bg-slate-800" />
+                    )}
+                    <div className="mt-1 flex items-center justify-between px-0.5">
+                      <p className="text-xs text-slate-400 leading-tight">{SHORT_STYLE_LABELS[entry.style]}</p>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleRegenerateOneImage(entry.style); }}
+                        disabled={entry.loading || isGenerating || isRegeneratingImage || isRegeneratingStyle[entry.style]}
+                        className="text-slate-600 hover:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none"
+                        title={`Regenerate ${SHORT_STYLE_LABELS[entry.style]}`}
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </button>
+                );
+              })}
+              {showLinkImageCard && (
                 <button
                   type="button"
-                  onClick={() => setSelectedImage("custom")}
-                  className={`relative w-full rounded-md border p-1.5 text-left transition-colors focus:outline-none ${
-                    selectedImage === "custom"
+                  onClick={() => setSelectedImage("link")}
+                  className={`rounded-md border p-1.5 text-left transition-colors focus:outline-none ${
+                    selectedImage === "link"
                       ? "border-slate-400 ring-2 ring-slate-400"
                       : "border-slate-700 hover:border-slate-500"
                   }`}
                 >
-                  <img src={customImageUrl} alt="Custom" className="h-20 w-full rounded object-cover" />
-                  <div className="mt-1 flex items-center justify-between px-0.5">
-                    <p className="text-xs text-slate-400 leading-tight">Custom</p>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCustomImageUrl(null);
-                        if (selectedImage === "custom") setSelectedImage("generated");
-                        setCustomUrlInput("");
-                      }}
-                      className="text-xs text-slate-600 hover:text-slate-300 focus:outline-none"
-                    >
-                      ✕ Remove
-                    </button>
-                  </div>
+                  {isFetchingLinkPreview && !linkPreviewImageUrl ? (
+                    <div className="h-24 w-full animate-pulse rounded bg-slate-800" />
+                  ) : linkPreviewImageUrl ? (
+                    <img src={linkPreviewImageUrl} alt="Link preview" className="h-24 w-full rounded object-cover" onError={clearLinkPreview} />
+                  ) : (
+                    <div className="h-24 w-full rounded bg-slate-800" />
+                  )}
+                  <p className="mt-1 text-center text-xs text-slate-400 leading-tight">Link preview</p>
                 </button>
               )}
-              {customUploadError && <p className="text-xs text-red-400">{customUploadError}</p>}
+              {showLinkVideoCard && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedImage("link-video")}
+                  className={`rounded-md border p-1.5 text-left transition-colors focus:outline-none ${
+                    selectedImage === "link-video"
+                      ? "border-slate-400 ring-2 ring-slate-400"
+                      : "border-slate-700 hover:border-slate-500"
+                  }`}
+                >
+                  {isXPostUrl(linkPreviewVideoUrl!) ? (
+                    <div className="h-24 w-full rounded bg-slate-800 flex items-center justify-center">
+                      <span className="text-2xl font-bold text-slate-300">𝕏</span>
+                    </div>
+                  ) : (
+                    <video
+                      src={linkPreviewVideoUrl!}
+                      className="h-24 w-full rounded object-cover"
+                      muted
+                      playsInline
+                    />
+                  )}
+                  <p className="mt-1 text-center text-xs text-slate-400 leading-tight">
+                    {isXPostUrl(linkPreviewVideoUrl!) ? "X embed" : "Link video"}
+                  </p>
+                </button>
+              )}
             </div>
-          )}
 
-          {/* Expand selected image */}
-          {(() => {
-            const expandUrl =
-              selectedImage === "generated"
-                ? (selectedPoolIndex !== null ? imagePool[selectedPoolIndex]?.url ?? null : null)
-                : selectedImage === "link" ? linkPreviewImageUrl
-                : selectedImage === "link-video" ? null
-                : selectedImage === "custom" ? customImageUrl
-                : null;
-            return expandUrl ? (
-              <button
-                type="button"
-                onClick={() => { setModalImageUrl(expandUrl); setShowImageModal(true); }}
-                className="group relative block w-full overflow-hidden rounded-md border border-slate-700 focus:outline-none"
-                title="Click to expand"
-              >
-                <img src={expandUrl} alt="Selected image" className="w-full object-cover" />
-                <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-xs font-medium text-white opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">
-                  Click to expand
-                </span>
-              </button>
-            ) : selectedImage === "link-video" && linkPreviewVideoUrl ? (
-              isXPostUrl(linkPreviewVideoUrl) ? (
-                <div className="w-full rounded-md border border-slate-700 bg-slate-800 flex items-center justify-center gap-3 py-6">
-                  <span className="text-3xl font-bold text-slate-300">𝕏</span>
-                  <p className="text-sm text-slate-400">X post will embed when posted</p>
+            {!isGenerating && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <label className={`flex flex-shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 ${isUploadingCustomImage ? "pointer-events-none opacity-50" : ""}`}>
+                    {isUploadingCustomImage ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                    {isUploadingCustomImage ? "Uploading…" : "Upload"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={isUploadingCustomImage}
+                      onChange={handleFileUpload}
+                    />
+                  </label>
+                  <input
+                    type="url"
+                    value={customUrlInput}
+                    onChange={(e) => setCustomUrlInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleCustomUrl(); }}
+                    onBlur={handleCustomUrl}
+                    placeholder="or paste image URL…"
+                    className="min-w-0 flex-1 rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-slate-100 placeholder-slate-600 outline-none focus:border-slate-500"
+                  />
                 </div>
-              ) : (
-                <video
-                  src={linkPreviewVideoUrl}
-                  className="w-full rounded-md border border-slate-700"
-                  controls
-                  muted
-                  playsInline
-                />
-              )
-            ) : null;
-          })()}
-
-        </div>
-      )}
+                {customImageUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedImage("custom")}
+                    className={`relative w-full rounded-md border p-1.5 text-left transition-colors focus:outline-none ${
+                      selectedImage === "custom"
+                        ? "border-slate-400 ring-2 ring-slate-400"
+                        : "border-slate-700 hover:border-slate-500"
+                    }`}
+                  >
+                    <img src={customImageUrl} alt="Custom" className="h-20 w-full rounded object-cover" />
+                    <div className="mt-1 flex items-center justify-between px-0.5">
+                      <p className="text-xs text-slate-400 leading-tight">Custom</p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCustomImageUrl(null);
+                          if (selectedImage === "custom") setSelectedImage("generated");
+                          setCustomUrlInput("");
+                        }}
+                        className="text-xs text-slate-600 hover:text-slate-300 focus:outline-none"
+                      >
+                        ✕ Remove
+                      </button>
+                    </div>
+                  </button>
+                )}
+                {customUploadError && <p className="text-xs text-red-400">{customUploadError}</p>}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* RIGHT COLUMN */}
@@ -587,7 +468,6 @@ export default function GeneratePage() {
         <p className="mb-3 text-xs font-medium uppercase tracking-widest text-slate-500">Preview</p>
 
         <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-
           {/* Header */}
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-3">
@@ -600,7 +480,7 @@ export default function GeneratePage() {
             <span className="text-slate-400 text-lg font-bold leading-none select-none">𝕏</span>
           </div>
 
-          {/* Body text — 3 states */}
+          {/* Body text */}
           <div className="mt-3">
             {isGenerating && !generatedText ? (
               <div className="space-y-2">
@@ -615,7 +495,7 @@ export default function GeneratePage() {
             )}
           </div>
 
-          {/* Image/Video — 3 states */}
+          {/* Image/Video */}
           <div className="mt-3">
             {(isGenerating || isRegeneratingImage || isGeneratingImages) && !activeImageUrl ? (
               <div className="h-48 w-full animate-pulse rounded-xl bg-slate-800" />
@@ -678,8 +558,97 @@ export default function GeneratePage() {
               </button>
             ))}
           </div>
-
         </div>
+
+        {/* Actions — below the preview card */}
+        {showActions && (
+          <div className="mt-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleApproveAndPost}
+                disabled={isPosting || !!postSuccess}
+                className="flex items-center gap-2 rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isPosting && <Loader2 className="h-4 w-4 animate-spin" />}
+                {isPosting ? "Posting…" : "Approve & Post"}
+              </button>
+              <button
+                type="button"
+                onClick={handleDiscard}
+                disabled={isPosting}
+                className="rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Discard
+              </button>
+            </div>
+
+            {/* Schedule toggle */}
+            {!postSuccess && !scheduleSuccess && (
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSchedule((v) => !v)}
+                  className="text-xs text-slate-500 underline hover:text-slate-300"
+                >
+                  {showSchedule ? "Cancel scheduling" : "Schedule for later"}
+                </button>
+                {showSchedule && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="datetime-local"
+                      value={scheduledFor}
+                      onChange={(e) => setScheduledFor(e.target.value)}
+                      min={new Date().toISOString().slice(0, 16)}
+                      className="rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { handleSchedule(scheduledFor); setShowSchedule(false); setScheduledFor(""); }}
+                      disabled={!scheduledFor}
+                      className="rounded-md border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Save schedule
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {scheduleSuccess && (
+              <p className="text-sm text-amber-400">
+                Scheduled. View in{" "}
+                <a href="/history" className="underline hover:text-amber-200">
+                  History →
+                </a>
+              </p>
+            )}
+
+            {postSuccess && (
+              <p className="text-sm text-green-400">
+                Posted!{" "}
+                <a
+                  href={postSuccess.tweetUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-green-200"
+                >
+                  View on X →
+                </a>
+              </p>
+            )}
+            {postError && (
+              <p className="text-sm text-red-400">
+                {postError}{" "}
+                {(postError.includes("connect") || postError.includes("Settings")) && (
+                  <a href="/settings" className="underline hover:text-red-200">
+                    Go to Settings →
+                  </a>
+                )}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Full-size image modal */}

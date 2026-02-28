@@ -4,17 +4,73 @@ import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { getSupabaseClient } from "@/lib/supabase";
 import { decrypt } from "@/lib/encryption";
+import type { PromptOverride } from "@/lib/prompt-override-schema";
+import {
+  DEFAULT_IMAGE_DESCRIPTIONS,
+  DEFAULT_IMAGE_STYLE_NAMES,
+  IMAGE_FORMAT_SPECS,
+} from "@/lib/prompt-override-schema";
 
 const GROK_API_URL = "https://api.x.ai/v1/responses";
 
-const SYSTEM_PROMPT = `You are GrokXPoster — an elite X content strategist and visual designer powered by Grok.
+function buildSystemPrompt(override?: PromptOverride | null): string {
+  const allowFaces = override?.imageStyles?.allowFaces ?? false;
+  const faceRule = allowFaces ? "" : " No realistic sharp-focus faces or people.";
+  const facesSuffix = allowFaces ? "" : ", no realistic sharp-focus faces or people";
+
+  // Resolve per-image style names and descriptions
+  const imageSlots = [
+    override?.imageStyles?.image1,
+    override?.imageStyles?.image2,
+    override?.imageStyles?.image3,
+  ] as const;
+
+  const styleNames = imageSlots.map(
+    (slot, i) => slot?.name?.trim() || DEFAULT_IMAGE_STYLE_NAMES[i]
+  );
+  const styleDescs = imageSlots.map(
+    (slot, i) => slot?.description?.trim() || DEFAULT_IMAGE_DESCRIPTIONS[i]
+  );
+
+  const imageStyleBlocks = [0, 1, 2]
+    .map((i) => {
+      const spec = `${IMAGE_FORMAT_SPECS[i]}${facesSuffix}.`;
+      return `**Image Prompt ${i + 1} — ${styleNames[i]}**\n${styleDescs[i]} — ${spec}`;
+    })
+    .join("\n\n");
+
+  // Build user preferences block (injected just before EXAMPLE)
+  const prefLines: string[] = [];
+  const ts = override?.textStyle;
+  if (ts?.tone && ts.tone !== "professional") {
+    prefLines.push(`- Tone: ${ts.tone.charAt(0).toUpperCase() + ts.tone.slice(1)}`);
+  }
+  if (ts?.emojiUsage && ts.emojiUsage !== "sparingly") {
+    const emojiLabels: Record<string, string> = { none: "None", moderate: "Moderate (3–5)" };
+    prefLines.push(`- Emoji usage: ${emojiLabels[ts.emojiUsage] ?? ts.emojiUsage}`);
+  }
+  if (ts?.audience?.trim()) prefLines.push(`- Target audience: ${ts.audience.trim()}`);
+  if (ts?.niche?.trim()) prefLines.push(`- Industry/niche: ${ts.niche.trim()}`);
+  if (ts?.avoid?.trim()) prefLines.push(`- Always avoid: ${ts.avoid.trim()}`);
+
+  const userPrefsPart =
+    prefLines.length > 0
+      ? `USER PREFERENCES (apply to X Post only)\n${prefLines.join("\n")}\n\n`
+      : "";
+  const brandVoicePart = override?.brandVoice?.trim()
+    ? `USER BRAND CONTEXT\n${override.brandVoice.trim()}\n\n`
+    : "";
+  const userBlock =
+    userPrefsPart || brandVoicePart ? `${userPrefsPart}${brandVoicePart}` : "";
+
+  return `You are GrokXPoster — an elite X content strategist and visual designer powered by Grok.
 Your ONLY job: Turn a user's short topic description (1–2 sentences) into one professional, highly captivating X post + three scroll-stopping image prompts.
 
 STRICT OUTPUT FORMAT (never deviate)
 1. **X Post** (ready to copy to X)
-2. **Image Prompt 1 — Cinematic / Symbolic**
-3. **Image Prompt 2 — Surreal / Abstract**
-4. **Image Prompt 3 — Bold Graphic / Typographic**
+2. **Image Prompt 1 — ${styleNames[0]}**
+3. **Image Prompt 2 — ${styleNames[1]}**
+4. **Image Prompt 3 — ${styleNames[2]}**
 5. **Why it works** (2–3 short bullets)
 
 RULES FOR THE X POST
@@ -27,23 +83,16 @@ RULES FOR THE X POST
 - **Hashtags are ALWAYS the very last line** — nothing comes after them. Format: 2–3 specific, searchable hashtags on a single line.
 
 RULES FOR THE THREE IMAGE PROMPTS
-All three must be detailed, ready-to-paste, premium (8K, modern, dramatic lighting), boldly symbolic/metaphorical, conceptually rich, and attention-grabbing. No realistic sharp-focus faces or people. Add text overlay's for impact, only if value added, of the hook phrase. Never plain, generic or low-quality.
+All three must be detailed, ready-to-paste, premium (8K, modern, dramatic lighting), boldly symbolic/metaphorical, conceptually rich, and attention-grabbing.${faceRule} Add text overlay's for impact, only if value added, of the hook phrase. Never plain, generic or low-quality.
 
-**Image Prompt 1 — Cinematic / Symbolic**
-Cinematic photography feel, 16:9, golden-hour/dramatic lighting, photorealistic textures, strong visual metaphor.
-
-**Image Prompt 2 — Surreal / Abstract**
-Dreamlike painterly style, 1:1 square, surreal scale, unexpected juxtapositions, otherworldly colors.
-
-**Image Prompt 3 — Bold Graphic / Typographic**
-Minimal high-contrast graphic design, 1:1 square, bold typography as hero, 2–3 color palette, clean geometric shapes.
+${imageStyleBlocks}
 
 ADDITIONAL GUARDRAILS
 - 100% on-topic, professional, neutral on sensitive subjects.
 - Never add "as an AI" or disclaimers.
 - Always sound like a thoughtful human expert wrote it in 30 seconds.
 
-EXAMPLE (reference only)
+${userBlock}EXAMPLE (reference only)
 
 User: "Benefits of cold plunges for entrepreneurs"
 
@@ -69,6 +118,7 @@ Flat graphic design poster, stark navy blue background with a single large geome
 • Three varied, high-impact image styles
 
 Now wait for the user's topic and deliver the five-section response exactly as specified.`;
+}
 
 const schema = z.object({
   prompt: z.string().min(1).max(10000),
@@ -92,17 +142,31 @@ export async function generateText(
   if (!userId) return { error: "Not authenticated." };
 
   const supabase = getSupabaseClient();
-  const { data: creds } = await supabase
-    .from("user_credentials")
-    .select("grok_api_key")
-    .eq("user_id", userId)
-    .single();
 
+  // Fetch credentials and settings in parallel
+  const [credsResult, settingsResult] = await Promise.all([
+    supabase
+      .from("user_credentials")
+      .select("grok_api_key")
+      .eq("user_id", userId)
+      .single(),
+    supabase
+      .from("user_settings")
+      .select("prompt_override")
+      .eq("user_id", userId)
+      .single(),
+  ]);
+
+  const { data: creds } = credsResult;
   if (!creds?.grok_api_key) {
     return { error: "Grok API key not set. Go to Settings to add it." };
   }
 
   const grokApiKey = decrypt(creds.grok_api_key as string);
+  const promptOverride =
+    (settingsResult.data?.prompt_override as PromptOverride | null) ?? null;
+
+  const systemPrompt = buildSystemPrompt(promptOverride);
 
   let userMessage = parsed.data.prompt;
 
@@ -122,23 +186,27 @@ export async function generateText(
       .order("created_at", { ascending: false })
       .limit(15);
 
-    const dbPosts = (recentRows ?? []).map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        prompt: row.prompt as string | null,
-        text: row.edited_text as string | null,
-      };
-    }).filter((r) => r.prompt || r.text);
+    const dbPosts = (recentRows ?? [])
+      .map((r) => {
+        const row = r as Record<string, unknown>;
+        return {
+          prompt: row.prompt as string | null,
+          text: row.edited_text as string | null,
+        };
+      })
+      .filter((r) => r.prompt || r.text);
 
     exclusions.push(...dbPosts);
 
     if (exclusions.length > 0) {
-      const list = exclusions.map((r) => {
-        const hook = r.text ? r.text.split("\n")[0].slice(0, 120) : null;
-        return hook
-          ? `- Topic: "${r.prompt}" → Hook: "${hook}"`
-          : `- Topic: "${r.prompt}"`;
-      }).join("\n");
+      const list = exclusions
+        .map((r) => {
+          const hook = r.text ? r.text.split("\n")[0].slice(0, 120) : null;
+          return hook
+            ? `- Topic: "${r.prompt}" → Hook: "${hook}"`
+            : `- Topic: "${r.prompt}"`;
+        })
+        .join("\n");
       userMessage =
         `Topic: ${parsed.data.prompt}\n\n` +
         `[NOVELTY DIRECTIVE — internal context only, do not mention in your response]\n` +
@@ -159,7 +227,7 @@ export async function generateText(
       body: JSON.stringify({
         model: "grok-4-1-fast-reasoning",
         input: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },
         ],
         tools: [{ type: "web_search" }],
