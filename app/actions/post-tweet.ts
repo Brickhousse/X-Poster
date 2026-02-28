@@ -81,7 +81,20 @@ export async function postTweet(text: string, imageUrl?: string): Promise<PostRe
       return { id: data.id, tweetUrl };
     }
 
-    const { data } = await client.v2.tweet(parsed.data.text);
+    // X embed selected: X videos can't be uploaded as media, but including the
+    // canonical x.com URL in the tweet text causes X to render a native video card.
+    let finalText = parsed.data.text;
+    if (parsed.data.imageUrl?.startsWith("https://platform.twitter.com/embed/")) {
+      const idMatch = parsed.data.imageUrl.match(/[?&]id=(\d+)/);
+      if (idMatch) {
+        const xUrl = `https://x.com/i/status/${idMatch[1]}`;
+        if (!finalText.includes(`/status/${idMatch[1]}`)) {
+          finalText = `${finalText}\n\n${xUrl}`;
+        }
+      }
+    }
+
+    const { data } = await client.v2.tweet(finalText);
     const tweetUrl = `https://x.com/i/web/status/${data.id}`;
     return { id: data.id, tweetUrl };
   } catch (err) {
