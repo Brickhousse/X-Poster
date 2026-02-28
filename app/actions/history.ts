@@ -119,6 +119,37 @@ export async function updateHistoryItem(
   return { ok: true };
 }
 
+export async function appendHistoryImage(
+  historyId: string,
+  grokUrl: string
+): Promise<{ storageUrl: string } | { error: string }> {
+  const { userId } = await auth();
+  if (!userId) return { error: "Not authenticated." };
+
+  const storageUrl = await uploadImageFromUrl(grokUrl, userId);
+  if (!storageUrl) return { error: "Upload failed." };
+
+  const supabase = getSupabaseClient();
+  const { data: row } = await supabase
+    .from("posts")
+    .select("image_urls")
+    .eq("id", historyId)
+    .eq("user_id", userId)
+    .single();
+
+  const current = ((row as Record<string, unknown> | null)?.image_urls as string[] | null) ?? [];
+  const updated = [...current, storageUrl];
+
+  const { error } = await supabase
+    .from("posts")
+    .update({ image_urls: updated, updated_at: new Date().toISOString() })
+    .eq("id", historyId)
+    .eq("user_id", userId);
+
+  if (error) return { error: "Failed to update history." };
+  return { storageUrl };
+}
+
 export async function deleteHistoryItem(id: string): Promise<MutateResult> {
   const { userId } = await auth();
   if (!userId) return { error: "Not authenticated." };

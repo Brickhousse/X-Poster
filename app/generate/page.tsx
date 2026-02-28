@@ -12,13 +12,13 @@ import { useGenerate } from "@/lib/generate-context";
 
 export default function GeneratePage() {
   const {
-    generatedText, textError, imageUrls, imageErrors, selectedImageIndex, styleLabels,
-    missingKey, isGenerating, isRegeneratingImage, isRegeneratingEach, whyItWorks,
+    generatedText, textError, imagePool, selectedPoolIndex, isRegeneratingStyle,
+    missingKey, isGenerating, isRegeneratingImage, whyItWorks,
     isPosting, postSuccess, postError, scheduleSuccess,
     editedText, charLimit,
     linkPreviewImageUrl, isFetchingLinkPreview, selectedImage,
     noveltyMode, setNoveltyMode,
-    setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedImageIndex,
+    setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedPoolIndex,
     customImageUrl, setCustomImageUrl,
     onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage, handleRegenerateOneImage,
     clearLinkPreview, prefill,
@@ -47,11 +47,16 @@ export default function GeneratePage() {
     const prefilledPrompt = params.get("prompt");
     const prefilledText = params.get("text");
     const prefilledImagePrompt = params.get("imagePrompt");
-    // Support all 3 stored URLs (imageUrl1/2/3) with fallback to legacy imageUrl param
-    const prefilledImageUrl1 = params.get("imageUrl1") ?? params.get("imageUrl");
-    const prefilledImageUrl2 = params.get("imageUrl2");
-    const prefilledImageUrl3 = params.get("imageUrl3");
-    const hasStoredImages = !!(prefilledImageUrl1 || prefilledImageUrl2 || prefilledImageUrl3);
+    // Collect all imageUrl1, imageUrl2, ... imageUrlN params (also accept legacy imageUrl)
+    const prefilledImageUrls: string[] = [];
+    const legacyUrl = params.get("imageUrl");
+    if (legacyUrl) prefilledImageUrls.push(legacyUrl);
+    for (let i = 1; ; i++) {
+      const u = params.get(`imageUrl${i}`);
+      if (!u) break;
+      if (!prefilledImageUrls.includes(u)) prefilledImageUrls.push(u);
+    }
+    const hasStoredImages = prefilledImageUrls.length > 0;
     if (prefilledPrompt) {
       setValue("prompt", prefilledPrompt);
     } else {
@@ -68,7 +73,7 @@ export default function GeneratePage() {
       prefill({
         prompt: prefilledPrompt ?? undefined,
         text: prefilledText ?? undefined,
-        imageUrls: [prefilledImageUrl1 ?? null, prefilledImageUrl2 ?? null, prefilledImageUrl3 ?? null],
+        imageUrls: prefilledImageUrls,
         imagePrompt: prefilledImagePrompt ?? undefined,
       });
       // Only regenerate if there are no stored images to show
@@ -91,11 +96,19 @@ export default function GeneratePage() {
     editedText.length >= charLimit * 0.9 ? "text-amber-400" :
     "text-slate-500";
 
+  const SHORT_STYLE_LABELS: Record<0 | 1 | 2, string> = {
+    0: "Cinematic", 1: "Surreal", 2: "Bold Graphic",
+  };
+
+  const anyImageUrl = imagePool.find((e) => e.url !== null)?.url ?? null;
+  const anyImageVisible = imagePool.length > 0 || isGenerating || isRegeneratingImage;
+
   const activeImageUrl =
-    selectedImage === "generated" ? imageUrls[selectedImageIndex] :
-    selectedImage === "link" ? linkPreviewImageUrl :
-    selectedImage === "custom" ? customImageUrl :
-    null;
+    selectedImage === "generated"
+      ? (selectedPoolIndex !== null ? imagePool[selectedPoolIndex]?.url ?? null : null)
+      : selectedImage === "link" ? linkPreviewImageUrl
+      : selectedImage === "custom" ? customImageUrl
+      : null;
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -136,8 +149,6 @@ export default function GeneratePage() {
       setCustomUploadError("Invalid image URL.");
     }
   };
-  const anyImageUrl = imageUrls[0] ?? imageUrls[1] ?? imageUrls[2];
-  const anyImageVisible = imageUrls.some(Boolean) || imageErrors.some(Boolean) || isGenerating || isRegeneratingImage;
   const showLinkCard = !isGenerating && !!linkPreviewImageUrl;
 
   return (
@@ -184,7 +195,7 @@ export default function GeneratePage() {
             <Shuffle className="h-3 w-3" />
             Fresh topics
           </button>
-          {(editedText || anyImageUrl || textError || imageErrors.some(Boolean)) && (
+          {(editedText || anyImageUrl || textError || imagePool.some((e) => e.error !== null)) && (
             <button
               type="button"
               onClick={handleDiscard}
@@ -232,7 +243,7 @@ export default function GeneratePage() {
       )}
 
       {/* Actions row — shown once generation completes */}
-      {(generatedText !== null || textError || anyImageUrl || imageErrors.some(Boolean)) && !isGenerating && (
+      {(generatedText !== null || textError || imagePool.length > 0) && !isGenerating && (
         <div className="mt-6 space-y-3">
           <div className="flex items-center gap-3">
             <button
@@ -337,50 +348,47 @@ export default function GeneratePage() {
               No image
             </label>
           </div>
-          <div className={`grid gap-2 ${showLinkCard ? "grid-cols-4" : "grid-cols-3"}`}>
-            {([0, 1, 2] as const).map((idx) => {
-              const url = imageUrls[idx];
-              const err = imageErrors[idx];
-              const loading = ((isGenerating || isRegeneratingImage) && !url && !err) || isRegeneratingEach[idx];
-              const isSelected = selectedImage === "generated" && selectedImageIndex === idx;
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+            {imagePool.map((entry, idx) => {
+              const isSelected = selectedImage === "generated" && selectedPoolIndex === idx;
               return (
                 <button
-                  key={idx}
+                  key={entry.id}
                   type="button"
                   onClick={() => {
-                    setSelectedImageIndex(idx);
+                    setSelectedPoolIndex(idx);
                     setSelectedImage("generated");
                   }}
-                  disabled={loading || !!err}
+                  disabled={entry.loading || !!entry.error}
                   className={`rounded-md border p-1.5 text-left transition-colors focus:outline-none disabled:cursor-default ${
                     isSelected
                       ? "border-slate-400 ring-2 ring-slate-400"
                       : "border-slate-700 hover:border-slate-500"
-                  } ${err ? "opacity-50" : ""}`}
+                  } ${entry.error ? "opacity-50" : ""}`}
                 >
-                  {loading ? (
-                    <div className="h-20 w-full animate-pulse rounded bg-slate-800" />
-                  ) : err ? (
-                    <div className="flex h-20 w-full items-center justify-center rounded bg-slate-800">
+                  {entry.loading ? (
+                    <div className="h-24 w-full animate-pulse rounded bg-slate-800" />
+                  ) : entry.error ? (
+                    <div className="flex h-24 w-full items-center justify-center rounded bg-slate-800">
                       <span className="text-xs text-red-400 text-center px-1">Failed</span>
                     </div>
-                  ) : url ? (
+                  ) : entry.url ? (
                     <img
-                      src={url}
-                      alt={styleLabels[idx]}
-                      className="h-20 w-full rounded object-cover"
+                      src={entry.url}
+                      alt={SHORT_STYLE_LABELS[entry.style]}
+                      className="h-24 w-full rounded object-cover"
                     />
                   ) : (
-                    <div className="h-20 w-full rounded bg-slate-800" />
+                    <div className="h-24 w-full rounded bg-slate-800" />
                   )}
                   <div className="mt-1 flex items-center justify-between px-0.5">
-                    <p className="text-xs text-slate-400 leading-tight">{styleLabels[idx]}</p>
+                    <p className="text-xs text-slate-400 leading-tight">{SHORT_STYLE_LABELS[entry.style]}</p>
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); handleRegenerateOneImage(idx); }}
-                      disabled={loading || isGenerating || isRegeneratingImage || isRegeneratingEach[idx]}
+                      onClick={(e) => { e.stopPropagation(); handleRegenerateOneImage(entry.style); }}
+                      disabled={entry.loading || isGenerating || isRegeneratingImage || isRegeneratingStyle[entry.style]}
                       className="text-slate-600 hover:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none"
-                      title={`Regenerate ${styleLabels[idx]}`}
+                      title={`Regenerate ${SHORT_STYLE_LABELS[entry.style]}`}
                     >
                       <RotateCcw className="h-3 w-3" />
                     </button>
@@ -399,11 +407,11 @@ export default function GeneratePage() {
                 }`}
               >
                 {isFetchingLinkPreview && !linkPreviewImageUrl ? (
-                  <div className="h-20 w-full animate-pulse rounded bg-slate-800" />
+                  <div className="h-24 w-full animate-pulse rounded bg-slate-800" />
                 ) : linkPreviewImageUrl ? (
-                  <img src={linkPreviewImageUrl} alt="Link preview" className="h-20 w-full rounded object-cover" onError={clearLinkPreview} />
+                  <img src={linkPreviewImageUrl} alt="Link preview" className="h-24 w-full rounded object-cover" onError={clearLinkPreview} />
                 ) : (
-                  <div className="h-20 w-full rounded bg-slate-800" />
+                  <div className="h-24 w-full rounded bg-slate-800" />
                 )}
                 <p className="mt-1 text-center text-xs text-slate-400 leading-tight">Link preview</p>
               </button>
@@ -469,10 +477,11 @@ export default function GeneratePage() {
           {/* Expand selected image */}
           {(() => {
             const expandUrl =
-              selectedImage === "generated" ? imageUrls[selectedImageIndex] :
-              selectedImage === "link" ? linkPreviewImageUrl :
-              selectedImage === "custom" ? customImageUrl :
-              null;
+              selectedImage === "generated"
+                ? (selectedPoolIndex !== null ? imagePool[selectedPoolIndex]?.url ?? null : null)
+                : selectedImage === "link" ? linkPreviewImageUrl
+                : selectedImage === "custom" ? customImageUrl
+                : null;
             return expandUrl ? (
               <button
                 type="button"

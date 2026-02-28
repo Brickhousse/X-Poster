@@ -5,24 +5,31 @@ import { generateText } from "@/app/actions/generate-text";
 import { generateImage } from "@/app/actions/generate-image";
 import { postTweet } from "@/app/actions/post-tweet";
 import { fetchLinkPreview } from "@/app/actions/fetch-link-preview";
-import { addHistoryItem, updateHistoryItem } from "@/app/actions/history";
+import { addHistoryItem, updateHistoryItem, appendHistoryImage } from "@/app/actions/history";
 import type { GenerateFormValues } from "@/lib/generation-schema";
+
+export interface ImageEntry {
+  id: number;        // unique per session, from incrementing ref
+  url: string | null;
+  error: string | null;
+  style: 0 | 1 | 2; // which style prompt generated this
+  loading: boolean;
+}
 
 const STYLE_LABELS = ["Cinematic / Symbolic", "Surreal / Abstract", "Bold Graphic / Typographic"] as const;
 
 interface GenerateState {
   generatedText: string | null;
   textError: string | null;
-  imageUrls: [string | null, string | null, string | null];
-  imageErrors: [string | null, string | null, string | null];
-  selectedImageIndex: 0 | 1 | 2;
+  imagePool: ImageEntry[];
+  selectedPoolIndex: number | null;
+  isRegeneratingStyle: [boolean, boolean, boolean];
   styleLabels: typeof STYLE_LABELS;
   missingKey: boolean;
   isGenerating: boolean;
   isRegeneratingImage: boolean;
   whyItWorks: string;
   lastImagePrompts: [string, string, string] | null;
-  isRegeneratingEach: [boolean, boolean, boolean];
   isPosting: boolean;
   postSuccess: { tweetUrl: string } | null;
   postError: string | null;
@@ -41,16 +48,16 @@ interface GenerateState {
   setMissingKey: (v: boolean) => void;
   setSelectedImage: (v: "generated" | "link" | "custom" | "none") => void;
   setCustomImageUrl: (v: string | null) => void;
-  setSelectedImageIndex: (v: 0 | 1 | 2) => void;
+  setSelectedPoolIndex: (v: number | null) => void;
   onSubmit: (values: GenerateFormValues) => Promise<void>;
   handleApproveAndPost: () => Promise<void>;
   handleSchedule: (scheduledFor: string) => void;
   handleDiscard: () => void;
   handleRegenerateImage: (overridePrompts?: [string, string, string]) => Promise<void>;
-  handleRegenerateOneImage: (idx: 0 | 1 | 2) => Promise<void>;
+  handleRegenerateOneImage: (style: 0 | 1 | 2) => Promise<void>;
   clearLinkPreview: () => void;
   // allow history page to prefill state
-  prefill: (opts: { prompt?: string; text?: string; imageUrls?: [string | null, string | null, string | null]; imagePrompt?: string }) => void;
+  prefill: (opts: { prompt?: string; text?: string; imageUrls?: string[]; imagePrompt?: string }) => void;
 }
 
 const GenerateContext = createContext<GenerateState | null>(null);
@@ -58,13 +65,13 @@ const GenerateContext = createContext<GenerateState | null>(null);
 export function GenerateProvider({ children }: { children: ReactNode }) {
   const [generatedText, setGeneratedText] = useState<string | null>(null);
   const [textError, setTextError] = useState<string | null>(null);
-  const [imageUrls, setImageUrls] = useState<[string | null, string | null, string | null]>([null, null, null]);
-  const [imageErrors, setImageErrors] = useState<[string | null, string | null, string | null]>([null, null, null]);
-  const [selectedImageIndex, setSelectedImageIndex] = useState<0 | 1 | 2>(0);
+  const [imagePool, setImagePool] = useState<ImageEntry[]>([]);
+  const [selectedPoolIndex, setSelectedPoolIndex] = useState<number | null>(null);
+  const [isRegeneratingStyle, setIsRegeneratingStyle] = useState<[boolean, boolean, boolean]>([false, false, false]);
+  const poolEntryId = useRef(0);
   const [missingKey, setMissingKey] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRegeneratingImage, setIsRegeneratingImage] = useState(false);
-  const [isRegeneratingEach, setIsRegeneratingEach] = useState<[boolean, boolean, boolean]>([false, false, false]);
   const [whyItWorks, setWhyItWorks] = useState("");
   const [lastImagePrompts, setLastImagePrompts] = useState<[string, string, string] | null>(null);
   const [isPosting, setIsPosting] = useState(false);
@@ -81,6 +88,11 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   const [noveltyMode, setNoveltyMode] = useState(false);
   const currentHistoryId = useRef<string | null>(null);
 
+  const makeLoadingEntry = (style: 0 | 1 | 2): ImageEntry => ({
+    id: poolEntryId.current++,
+    url: null, error: null, style, loading: true,
+  });
+
   // ── Session persistence ──────────────────────────────────────────────────
   const SESSION_KEY = "xposter_generate_draft";
 
@@ -91,9 +103,18 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       if (!raw) return;
       const s = JSON.parse(raw);
       if (s.generatedText) { setGeneratedText(s.generatedText); setEditedText(s.editedText ?? s.generatedText); }
-      if (s.imageUrls) setImageUrls(s.imageUrls);
-      if (s.imageErrors) setImageErrors(s.imageErrors);
-      if (typeof s.selectedImageIndex === "number") setSelectedImageIndex(s.selectedImageIndex);
+      if (Array.isArray(s.imagePool)) {
+        const restored: ImageEntry[] = (s.imagePool as ImageEntry[])
+          .filter((e) => e.url !== null || e.error !== null);
+        setImagePool(restored);
+        poolEntryId.current = restored.length > 0
+          ? Math.max(...restored.map((e) => e.id)) + 1 : 0;
+        const idx = typeof s.selectedPoolIndex === "number"
+          && s.selectedPoolIndex >= 0 && s.selectedPoolIndex < restored.length
+            ? s.selectedPoolIndex
+            : restored.length > 0 ? 0 : null;
+        setSelectedPoolIndex(idx);
+      }
       if (s.lastPrompt) setLastPrompt(s.lastPrompt);
       if (s.lastImagePrompts) setLastImagePrompts(s.lastImagePrompts);
       if (s.whyItWorks) setWhyItWorks(s.whyItWorks);
@@ -111,18 +132,20 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-        generatedText, editedText, imageUrls, imageErrors,
-        selectedImageIndex, lastPrompt, lastImagePrompts, whyItWorks,
+        generatedText, editedText,
+        imagePool: imagePool.map((e) => e.loading ? { ...e, loading: false } : e),
+        selectedPoolIndex,
+        lastPrompt, lastImagePrompts, whyItWorks,
         selectedImage, customImageUrl, linkPreviewImageUrl, noveltyMode,
         postSuccess, scheduleSuccess,
         historyId: currentHistoryId.current,
       }));
     } catch {}
-  }, [generatedText, editedText, imageUrls, imageErrors, selectedImageIndex,
+  }, [generatedText, editedText, imagePool, selectedPoolIndex,
       lastPrompt, lastImagePrompts, whyItWorks, selectedImage, customImageUrl,
       linkPreviewImageUrl, noveltyMode, postSuccess, scheduleSuccess]);
 
-  const prefill = ({ prompt, text, imageUrls: urls, imagePrompt }: { prompt?: string; text?: string; imageUrls?: [string | null, string | null, string | null]; imagePrompt?: string }) => {
+  const prefill = ({ prompt, text, imageUrls: urls, imagePrompt }: { prompt?: string; text?: string; imageUrls?: string[]; imagePrompt?: string }) => {
     if (prompt) setLastPrompt(prompt);
     if (text) {
       setGeneratedText(text);
@@ -137,7 +160,14 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
         });
       }
     }
-    if (urls) setImageUrls(urls);
+    if (urls && urls.length > 0) {
+      poolEntryId.current = 0;
+      const newPool: ImageEntry[] = urls
+        .filter((u) => !!u)
+        .map((u, i) => ({ id: poolEntryId.current++, url: u, error: null, style: (i % 3) as 0 | 1 | 2, loading: false }));
+      setImagePool(newPool);
+      setSelectedPoolIndex(newPool.length > 0 ? 0 : null);
+    }
     if (imagePrompt) setLastImagePrompts([imagePrompt, imagePrompt, imagePrompt]);
   };
 
@@ -149,10 +179,6 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
 
     setGeneratedText(null);
     setTextError(null);
-    setImageUrls([null, null, null]);
-    setImageErrors([null, null, null]);
-    setIsRegeneratingEach([false, false, false]);
-    setSelectedImageIndex(0);
     setMissingKey(false);
     setLinkPreviewImageUrl(null);
     setCustomImageUrl(null);
@@ -162,6 +188,13 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     setScheduleSuccess(false);
 
     setLastPrompt(values.prompt);
+
+    // Reset pool to 3 loading entries
+    poolEntryId.current = 0;
+    setImagePool([makeLoadingEntry(0), makeLoadingEntry(1), makeLoadingEntry(2)]);
+    setSelectedPoolIndex(0);
+    setIsRegeneratingStyle([false, false, false]);
+
     setIsGenerating(true);
     try {
       const textResult = await generateText(values.prompt, noveltyMode, inSessionDraft);
@@ -203,23 +236,23 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
         // Server action threw — defaults already set to fallback errors
       }
 
-      setImageUrls([
-        "error" in r1 ? null : r1.url,
-        "error" in r2 ? null : r2.url,
-        "error" in r3 ? null : r3.url,
-      ]);
-      setImageErrors([
-        "error" in r1 ? r1.error : null,
-        "error" in r2 ? r2.error : null,
-        "error" in r3 ? r3.error : null,
-      ]);
+      const results = [r1, r2, r3];
+      setImagePool((prev) =>
+        prev.map((entry) => {
+          if (entry.id > 2) return entry; // guard: don't touch any regen entries
+          const r = results[entry.id];
+          return {
+            ...entry, loading: false,
+            url: "error" in r ? null : r.url,
+            error: "error" in r ? r.error : null,
+          };
+        })
+      );
 
       if (resolvedText) {
-        const allImageUrls = [
-          "error" in r1 ? null : r1.url,
-          "error" in r2 ? null : r2.url,
-          "error" in r3 ? null : r3.url,
-        ].filter((u): u is string => u !== null);
+        const allImageUrls = results
+          .map((r) => ("error" in r ? null : r.url))
+          .filter((u): u is string => u !== null);
 
         const result = await addHistoryItem({
           prompt: values.prompt,
@@ -232,13 +265,15 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
         });
         if ("id" in result) {
           currentHistoryId.current = result.id;
-          // Update imageUrls to Storage URLs so post/schedule use persistent URLs
+          // Update pool entries 0-2 to Storage URLs so post/schedule use persistent URLs
           if (result.storageUrls.length > 0) {
-            setImageUrls([
-              result.storageUrls[0] ?? null,
-              result.storageUrls[1] ?? null,
-              result.storageUrls[2] ?? null,
-            ]);
+            setImagePool((prev) =>
+              prev.map((entry) => {
+                if (entry.id > 2) return entry; // only update initial 3
+                const storageUrl = result.storageUrls[entry.id] ?? null;
+                return storageUrl ? { ...entry, url: storageUrl } : entry;
+              })
+            );
           }
         }
       }
@@ -253,10 +288,11 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     setIsPosting(true);
     try {
       const imageToPost =
-        selectedImage === "generated" ? imageUrls[selectedImageIndex] :
-        selectedImage === "link" ? linkPreviewImageUrl :
-        selectedImage === "custom" ? customImageUrl :
-        null;
+        selectedImage === "generated"
+          ? (selectedPoolIndex !== null ? imagePool[selectedPoolIndex]?.url ?? null : null)
+          : selectedImage === "link" ? linkPreviewImageUrl
+          : selectedImage === "custom" ? customImageUrl
+          : null;
       const result = await postTweet(editedText, imageToPost ?? undefined);
       if ("error" in result) {
         setPostError(result.error);
@@ -280,12 +316,13 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   const handleSchedule = async (scheduledFor: string) => {
     if (!scheduledFor) return;
     const isoScheduled = new Date(scheduledFor).toISOString();
+    const imageToSchedule =
+      selectedImage === "generated"
+        ? (selectedPoolIndex !== null ? imagePool[selectedPoolIndex]?.url ?? null : null)
+        : selectedImage === "link" ? linkPreviewImageUrl
+        : selectedImage === "custom" ? customImageUrl
+        : null;
     if (currentHistoryId.current) {
-      const imageToSchedule =
-        selectedImage === "generated" ? imageUrls[selectedImageIndex] :
-        selectedImage === "link" ? linkPreviewImageUrl :
-        selectedImage === "custom" ? customImageUrl :
-        null;
       await updateHistoryItem(currentHistoryId.current, {
         editedText,
         imageUrl: imageToSchedule ?? null,
@@ -296,7 +333,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       const result = await addHistoryItem({
         prompt: lastPrompt,
         editedText,
-        imageUrl: imageUrls[selectedImageIndex],
+        imageUrl: imageToSchedule ?? null,
         status: "scheduled",
         createdAt: new Date().toISOString(),
         scheduledFor: isoScheduled,
@@ -310,12 +347,12 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     setGeneratedText(null);
     setEditedText("");
     setTextError(null);
-    setImageUrls([null, null, null]);
-    setImageErrors([null, null, null]);
-    setSelectedImageIndex(0);
+    setImagePool([]);
+    setSelectedPoolIndex(null);
+    setIsRegeneratingStyle([false, false, false]);
+    poolEntryId.current = 0;
     setLastPrompt("");
     setLastImagePrompts(null);
-    setIsRegeneratingEach([false, false, false]);
     setWhyItWorks("");
     setMissingKey(false);
     setPostSuccess(null);
@@ -335,49 +372,79 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
 
   const handleRegenerateImage = async (overridePrompts?: [string, string, string]) => {
     setIsRegeneratingImage(true);
-    setImageErrors([null, null, null]);
-    setImageUrls([null, null, null]);
     const prompts: [string, string, string] = overridePrompts ?? lastImagePrompts ?? [editedText || lastPrompt, editedText || lastPrompt, editedText || lastPrompt];
+
+    // Reset pool to 3 fresh loading entries
+    poolEntryId.current = 0;
+    setImagePool([makeLoadingEntry(0), makeLoadingEntry(1), makeLoadingEntry(2)]);
+    setSelectedPoolIndex(0);
+
     try {
       const [r1, r2, r3] = await Promise.all([
         generateImage(prompts[0]),
         generateImage(prompts[1]),
         generateImage(prompts[2]),
       ]);
-      setImageUrls([
-        "error" in r1 ? null : r1.url,
-        "error" in r2 ? null : r2.url,
-        "error" in r3 ? null : r3.url,
-      ]);
-      setImageErrors([
-        "error" in r1 ? r1.error : null,
-        "error" in r2 ? r2.error : null,
-        "error" in r3 ? r3.error : null,
-      ]);
+      const results = [r1, r2, r3];
+      setImagePool((prev) =>
+        prev.map((entry) => {
+          if (entry.id > 2) return entry;
+          const r = results[entry.id];
+          return {
+            ...entry, loading: false,
+            url: "error" in r ? null : r.url,
+            error: "error" in r ? r.error : null,
+          };
+        })
+      );
       if ("error" in r1 && r1.error.includes("API key not set")) setMissingKey(true);
     } finally {
       setIsRegeneratingImage(false);
     }
   };
 
-  const handleRegenerateOneImage = async (idx: 0 | 1 | 2) => {
-    setIsRegeneratingEach((prev) => {
+  const handleRegenerateOneImage = async (style: 0 | 1 | 2) => {
+    setIsRegeneratingStyle((prev) => {
       const next = [...prev] as [boolean, boolean, boolean];
-      next[idx] = true;
+      next[style] = true;
       return next;
     });
-    setImageUrls((prev) => { const n = [...prev] as typeof prev; n[idx] = null; return n; });
-    setImageErrors((prev) => { const n = [...prev] as typeof prev; n[idx] = null; return n; });
-    const prompt = lastImagePrompts?.[idx] ?? (editedText || lastPrompt);
+    const newId = poolEntryId.current++;
+    setImagePool((prev) => [...prev, { id: newId, url: null, error: null, style, loading: true }]);
+
+    const prompt = lastImagePrompts?.[style] ?? (editedText || lastPrompt);
     try {
       const result = await generateImage(prompt);
-      setImageUrls((prev) => { const n = [...prev] as typeof prev; n[idx] = "error" in result ? null : result.url; return n; });
-      setImageErrors((prev) => { const n = [...prev] as typeof prev; n[idx] = "error" in result ? result.error : null; return n; });
+      const grokUrl = "error" in result ? null : result.url;
+      setImagePool((prev) =>
+        prev.map((entry) =>
+          entry.id === newId
+            ? {
+                ...entry, loading: false,
+                url: grokUrl,
+                error: "error" in result ? result.error : null,
+              }
+            : entry
+        )
+      );
       if ("error" in result && result.error.includes("API key not set")) setMissingKey(true);
+
+      // Persist to history: upload to Storage and append to DB record in background
+      if (grokUrl && currentHistoryId.current) {
+        const histId = currentHistoryId.current;
+        appendHistoryImage(histId, grokUrl).then((res) => {
+          if ("storageUrl" in res) {
+            // Swap ephemeral Grok URL → persistent Storage URL in pool
+            setImagePool((prev) =>
+              prev.map((e) => e.id === newId ? { ...e, url: res.storageUrl } : e)
+            );
+          }
+        });
+      }
     } finally {
-      setIsRegeneratingEach((prev) => {
+      setIsRegeneratingStyle((prev) => {
         const next = [...prev] as [boolean, boolean, boolean];
-        next[idx] = false;
+        next[style] = false;
         return next;
       });
     }
@@ -385,13 +452,14 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
 
   return (
     <GenerateContext.Provider value={{
-      generatedText, textError, imageUrls, imageErrors, selectedImageIndex, styleLabels: STYLE_LABELS,
-      missingKey, isGenerating, isRegeneratingImage, isRegeneratingEach, whyItWorks, lastImagePrompts,
+      generatedText, textError, imagePool, selectedPoolIndex, isRegeneratingStyle,
+      styleLabels: STYLE_LABELS,
+      missingKey, isGenerating, isRegeneratingImage, whyItWorks, lastImagePrompts,
       isPosting, postSuccess, postError, scheduleSuccess,
       lastPrompt, editedText, charLimit,
       linkPreviewImageUrl, isFetchingLinkPreview, selectedImage, customImageUrl,
       noveltyMode, setNoveltyMode,
-      setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedImageIndex, setCustomImageUrl,
+      setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedPoolIndex, setCustomImageUrl,
       onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage, handleRegenerateOneImage,
       clearLinkPreview, prefill,
     }}>
