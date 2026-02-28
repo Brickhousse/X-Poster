@@ -41,7 +41,7 @@ export async function postTweet(text: string, imageUrl?: string): Promise<PostRe
     if (parsed.data.imageUrl) {
       const imgRes = await fetch(parsed.data.imageUrl);
       if (!imgRes.ok) {
-        return { error: `Could not fetch image (${imgRes.status}). The image URL may have expired — try regenerating.` };
+        return { error: `Could not fetch media (${imgRes.status}). The URL may have expired — try regenerating.` };
       }
       const buffer = Buffer.from(await imgRes.arrayBuffer());
       const mimeType = (imgRes.headers.get("content-type")?.split(";")[0] ?? "image/jpeg") as EUploadMimeType;

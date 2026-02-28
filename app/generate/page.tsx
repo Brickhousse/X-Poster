@@ -16,7 +16,7 @@ export default function GeneratePage() {
     missingKey, isGenerating, isRegeneratingImage, whyItWorks,
     isPosting, postSuccess, postError, scheduleSuccess,
     editedText, charLimit,
-    linkPreviewImageUrl, isFetchingLinkPreview, selectedImage,
+    linkPreviewImageUrl, linkPreviewVideoUrl, isFetchingLinkPreview, selectedImage,
     noveltyMode, setNoveltyMode,
     textFirstMode, isGeneratingImages, handleGenerateImages,
     setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedPoolIndex,
@@ -108,6 +108,7 @@ export default function GeneratePage() {
     selectedImage === "generated"
       ? (selectedPoolIndex !== null ? imagePool[selectedPoolIndex]?.url ?? null : null)
       : selectedImage === "link" ? linkPreviewImageUrl
+      : selectedImage === "link-video" ? linkPreviewVideoUrl
       : selectedImage === "custom" ? customImageUrl
       : null;
 
@@ -150,7 +151,8 @@ export default function GeneratePage() {
       setCustomUploadError("Invalid image URL.");
     }
   };
-  const showLinkCard = !isGenerating && !!linkPreviewImageUrl;
+  const showLinkImageCard = !isGenerating && !!linkPreviewImageUrl;
+  const showLinkVideoCard = !isGenerating && !!linkPreviewVideoUrl;
 
   return (
     <div className="grid grid-cols-1 gap-6 items-start max-w-5xl md:grid-cols-2 md:gap-8">
@@ -363,7 +365,7 @@ export default function GeneratePage() {
       {anyImageVisible && (
         <div className="mt-6 space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-slate-300">Choose an image</h2>
+            <h2 className="text-sm font-medium text-slate-300">Choose an image or video</h2>
             <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-500 hover:text-slate-300">
               <input
                 type="radio"
@@ -423,7 +425,7 @@ export default function GeneratePage() {
                 </button>
               );
             })}
-            {showLinkCard && (
+            {showLinkImageCard && (
               <button
                 type="button"
                 onClick={() => setSelectedImage("link")}
@@ -441,6 +443,25 @@ export default function GeneratePage() {
                   <div className="h-24 w-full rounded bg-slate-800" />
                 )}
                 <p className="mt-1 text-center text-xs text-slate-400 leading-tight">Link preview</p>
+              </button>
+            )}
+            {showLinkVideoCard && (
+              <button
+                type="button"
+                onClick={() => setSelectedImage("link-video")}
+                className={`rounded-md border p-1.5 text-left transition-colors focus:outline-none ${
+                  selectedImage === "link-video"
+                    ? "border-slate-400 ring-2 ring-slate-400"
+                    : "border-slate-700 hover:border-slate-500"
+                }`}
+              >
+                <video
+                  src={linkPreviewVideoUrl!}
+                  className="h-24 w-full rounded object-cover"
+                  muted
+                  playsInline
+                />
+                <p className="mt-1 text-center text-xs text-slate-400 leading-tight">Link video</p>
               </button>
             )}
           </div>
@@ -507,6 +528,7 @@ export default function GeneratePage() {
               selectedImage === "generated"
                 ? (selectedPoolIndex !== null ? imagePool[selectedPoolIndex]?.url ?? null : null)
                 : selectedImage === "link" ? linkPreviewImageUrl
+                : selectedImage === "link-video" ? null
                 : selectedImage === "custom" ? customImageUrl
                 : null;
             return expandUrl ? (
@@ -521,6 +543,14 @@ export default function GeneratePage() {
                   Click to expand
                 </span>
               </button>
+            ) : selectedImage === "link-video" && linkPreviewVideoUrl ? (
+              <video
+                src={linkPreviewVideoUrl}
+                className="w-full rounded-md border border-slate-700"
+                controls
+                muted
+                playsInline
+              />
             ) : null;
           })()}
 
@@ -569,7 +599,7 @@ export default function GeneratePage() {
             )}
           </div>
 
-          {/* Image — 3 states */}
+          {/* Image/Video — 3 states */}
           <div className="mt-3">
             {(isGenerating || isRegeneratingImage || isGeneratingImages) && !activeImageUrl ? (
               <div className="h-48 w-full animate-pulse rounded-xl bg-slate-800" />
@@ -583,6 +613,14 @@ export default function GeneratePage() {
               >
                 <img src={linkPreviewImageUrl} alt="Link preview image" className="w-full object-cover" />
               </button>
+            ) : selectedImage === "link-video" && linkPreviewVideoUrl ? (
+              <video
+                src={linkPreviewVideoUrl}
+                className="w-full rounded-xl"
+                controls
+                muted
+                playsInline
+              />
             ) : activeImageUrl ? (
               <button
                 type="button"

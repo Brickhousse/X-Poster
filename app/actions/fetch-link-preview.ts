@@ -3,7 +3,9 @@ import { z } from "zod";
 
 const schema = z.object({ url: z.string().url() });
 
-export async function fetchLinkPreview(url: string): Promise<{ imageUrl: string } | { error: string }> {
+export async function fetchLinkPreview(
+  url: string
+): Promise<{ imageUrl: string | null; videoUrl: string | null } | { error: string }> {
   const parsed = schema.safeParse({ url });
   if (!parsed.success) return { error: "Invalid URL" };
   try {
@@ -13,14 +15,38 @@ export async function fetchLinkPreview(url: string): Promise<{ imageUrl: string 
     });
     if (!res.ok) return { error: `HTTP ${res.status}` };
     const html = await res.text();
+
     // Try both attribute orders for og:image
-    const match =
+    const imageMatch =
       html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ??
       html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-    if (!match?.[1]) return { error: "No preview image found" };
-    // Resolve relative URLs
-    const imageUrl = match[1].startsWith("http") ? match[1] : new URL(match[1], parsed.data.url).href;
-    return { imageUrl };
+    const imageUrl = imageMatch?.[1]
+      ? (imageMatch[1].startsWith("http") ? imageMatch[1] : new URL(imageMatch[1], parsed.data.url).href)
+      : null;
+
+    // Try both attribute orders for og:video:url and og:video
+    const videoMatch =
+      html.match(/<meta[^>]+property=["']og:video:url["'][^>]+content=["']([^"']+)["']/i) ??
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:video:url["']/i) ??
+      html.match(/<meta[^>]+property=["']og:video["'][^>]+content=["']([^"']+)["']/i) ??
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:video["']/i);
+
+    const videoTypeMatch =
+      html.match(/<meta[^>]+property=["']og:video:type["'][^>]+content=["']([^"']+)["']/i) ??
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:video:type["']/i);
+
+    const rawVideoUrl = videoMatch?.[1];
+    const videoType = videoTypeMatch?.[1] ?? "";
+    const isDirectVideo =
+      videoType.startsWith("video/") ||
+      (!videoType && !!rawVideoUrl && /\.(mp4|webm|ogg|mov)(\?|$)/i.test(rawVideoUrl));
+
+    const videoUrl = isDirectVideo && rawVideoUrl
+      ? (rawVideoUrl.startsWith("http") ? rawVideoUrl : new URL(rawVideoUrl, parsed.data.url).href)
+      : null;
+
+    if (!imageUrl && !videoUrl) return { error: "No preview media found" };
+    return { imageUrl, videoUrl };
   } catch {
     return { error: "Failed to fetch link preview" };
   }

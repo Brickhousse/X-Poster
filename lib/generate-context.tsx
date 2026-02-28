@@ -38,8 +38,9 @@ interface GenerateState {
   editedText: string;
   charLimit: number;
   linkPreviewImageUrl: string | null;
+  linkPreviewVideoUrl: string | null;
   isFetchingLinkPreview: boolean;
-  selectedImage: "generated" | "link" | "custom" | "none";
+  selectedImage: "generated" | "link" | "link-video" | "custom" | "none";
   customImageUrl: string | null;
   noveltyMode: boolean;
   setNoveltyMode: (v: boolean) => void;
@@ -50,7 +51,7 @@ interface GenerateState {
   setEditedText: (v: string) => void;
   setCharLimit: (v: number) => void;
   setMissingKey: (v: boolean) => void;
-  setSelectedImage: (v: "generated" | "link" | "custom" | "none") => void;
+  setSelectedImage: (v: "generated" | "link" | "link-video" | "custom" | "none") => void;
   setCustomImageUrl: (v: string | null) => void;
   setSelectedPoolIndex: (v: number | null) => void;
   onSubmit: (values: GenerateFormValues, textFirst?: boolean) => Promise<void>;
@@ -86,8 +87,9 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   const [editedText, setEditedText] = useState("");
   const [charLimit, setCharLimit] = useState(280);
   const [linkPreviewImageUrl, setLinkPreviewImageUrl] = useState<string | null>(null);
+  const [linkPreviewVideoUrl, setLinkPreviewVideoUrl] = useState<string | null>(null);
   const [isFetchingLinkPreview, setIsFetchingLinkPreview] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<"generated" | "link" | "custom" | "none">("generated");
+  const [selectedImage, setSelectedImage] = useState<"generated" | "link" | "link-video" | "custom" | "none">("generated");
   const [customImageUrl, setCustomImageUrl] = useState<string | null>(null);
   const [noveltyMode, setNoveltyMode] = useState(false);
   const [textFirstMode, setTextFirstMode] = useState(false);
@@ -127,6 +129,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       if (s.selectedImage) setSelectedImage(s.selectedImage);
       if (s.customImageUrl) setCustomImageUrl(s.customImageUrl);
       if (s.linkPreviewImageUrl) setLinkPreviewImageUrl(s.linkPreviewImageUrl);
+      if (s.linkPreviewVideoUrl) setLinkPreviewVideoUrl(s.linkPreviewVideoUrl);
       if (typeof s.noveltyMode === "boolean") setNoveltyMode(s.noveltyMode);
       if (typeof s.textFirstMode === "boolean") setTextFirstMode(s.textFirstMode);
       if (s.postSuccess) setPostSuccess(s.postSuccess);
@@ -143,14 +146,14 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
         imagePool: imagePool.map((e) => e.loading ? { ...e, loading: false } : e),
         selectedPoolIndex,
         lastPrompt, lastImagePrompts, whyItWorks,
-        selectedImage, customImageUrl, linkPreviewImageUrl, noveltyMode, textFirstMode,
+        selectedImage, customImageUrl, linkPreviewImageUrl, linkPreviewVideoUrl, noveltyMode, textFirstMode,
         postSuccess, scheduleSuccess,
         historyId: currentHistoryId.current,
       }));
     } catch {}
   }, [generatedText, editedText, imagePool, selectedPoolIndex,
       lastPrompt, lastImagePrompts, whyItWorks, selectedImage, customImageUrl,
-      linkPreviewImageUrl, noveltyMode, textFirstMode, postSuccess, scheduleSuccess]);
+      linkPreviewImageUrl, linkPreviewVideoUrl, noveltyMode, textFirstMode, postSuccess, scheduleSuccess]);
 
   const prefill = ({ prompt, text, imageUrls: urls, imagePrompt }: { prompt?: string; text?: string; imageUrls?: string[]; imagePrompt?: string }) => {
     if (prompt) setLastPrompt(prompt);
@@ -162,7 +165,10 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       if (urlMatch) {
         setIsFetchingLinkPreview(true);
         fetchLinkPreview(urlMatch[0]).then((res) => {
-          if ("imageUrl" in res) setLinkPreviewImageUrl(res.imageUrl);
+          if (!("error" in res)) {
+            if (res.imageUrl) setLinkPreviewImageUrl(res.imageUrl);
+            if (res.videoUrl) setLinkPreviewVideoUrl(res.videoUrl);
+          }
           setIsFetchingLinkPreview(false);
         });
       }
@@ -191,6 +197,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     setTextError(null);
     setMissingKey(false);
     setLinkPreviewImageUrl(null);
+    setLinkPreviewVideoUrl(null);
     setCustomImageUrl(null);
     setSelectedImage("generated");
     setPostSuccess(null);
@@ -233,7 +240,10 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
         if (urlMatch) {
           setIsFetchingLinkPreview(true);
           fetchLinkPreview(urlMatch[0]).then((res) => {
-            if ("imageUrl" in res) setLinkPreviewImageUrl(res.imageUrl);
+            if (!("error" in res)) {
+              if (res.imageUrl) setLinkPreviewImageUrl(res.imageUrl);
+              if (res.videoUrl) setLinkPreviewVideoUrl(res.videoUrl);
+            }
             setIsFetchingLinkPreview(false);
           });
         }
@@ -325,6 +335,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
         selectedImage === "generated"
           ? (selectedPoolIndex !== null ? imagePool[selectedPoolIndex]?.url ?? null : null)
           : selectedImage === "link" ? linkPreviewImageUrl
+          : selectedImage === "link-video" ? linkPreviewVideoUrl
           : selectedImage === "custom" ? customImageUrl
           : null;
       const result = await postTweet(editedText, imageToPost ?? undefined);
@@ -354,6 +365,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       selectedImage === "generated"
         ? (selectedPoolIndex !== null ? imagePool[selectedPoolIndex]?.url ?? null : null)
         : selectedImage === "link" ? linkPreviewImageUrl
+        : selectedImage === "link-video" ? linkPreviewVideoUrl
         : selectedImage === "custom" ? customImageUrl
         : null;
     if (currentHistoryId.current) {
@@ -393,6 +405,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     setPostError(null);
     setScheduleSuccess(false);
     setLinkPreviewImageUrl(null);
+    setLinkPreviewVideoUrl(null);
     setCustomImageUrl(null);
     setSelectedImage("generated");
     currentHistoryId.current = null;
@@ -401,7 +414,10 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
 
   const clearLinkPreview = () => {
     setLinkPreviewImageUrl(null);
-    setSelectedImage((prev) => prev === "link" ? "generated" : prev as "generated" | "custom" | "none");
+    setLinkPreviewVideoUrl(null);
+    setSelectedImage((prev) =>
+      prev === "link" || prev === "link-video" ? "generated" : prev as "generated" | "custom" | "none"
+    );
   };
 
   const handleRegenerateImage = async (overridePrompts?: [string, string, string]) => {
@@ -547,7 +563,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       missingKey, isGenerating, isRegeneratingImage, whyItWorks, lastImagePrompts,
       isPosting, postSuccess, postError, scheduleSuccess,
       lastPrompt, editedText, charLimit,
-      linkPreviewImageUrl, isFetchingLinkPreview, selectedImage, customImageUrl,
+      linkPreviewImageUrl, linkPreviewVideoUrl, isFetchingLinkPreview, selectedImage, customImageUrl,
       noveltyMode, setNoveltyMode,
       textFirstMode, setTextFirstMode, isGeneratingImages, handleGenerateImages,
       setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedPoolIndex, setCustomImageUrl,
