@@ -107,6 +107,8 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   const currentEntryPosted = useRef(false);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [draftSaveStatus, setDraftSaveStatus] = useState<"unsaved" | "saved" | null>(null);
+  const lastPreviewedUrl = useRef<string | null>(null);
+  const linkPreviewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load prompt override from settings on mount
   useEffect(() => {
@@ -213,6 +215,41 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     };
   }, [editedText]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Re-fetch link preview when the URL in the edited text changes
+  useEffect(() => {
+    const urlMatch = editedText.match(/https?:\/\/[^\s\]()]+/);
+    const url = urlMatch?.[0] ?? null;
+
+    if (url === lastPreviewedUrl.current) return;
+
+    if (linkPreviewTimer.current) clearTimeout(linkPreviewTimer.current);
+
+    if (!url) {
+      lastPreviewedUrl.current = null;
+      setLinkPreviewImageUrl(null);
+      setLinkPreviewVideoUrl(null);
+      setSelectedImage((prev) =>
+        prev === "link" || prev === "link-video" ? "generated" : prev
+      );
+      return;
+    }
+
+    linkPreviewTimer.current = setTimeout(async () => {
+      lastPreviewedUrl.current = url;
+      setLinkPreviewImageUrl(null);
+      setLinkPreviewVideoUrl(null);
+      setIsFetchingLinkPreview(true);
+      const res = await fetchLinkPreview(url);
+      if (!("error" in res)) {
+        if (res.imageUrl) { setLinkPreviewImageUrl(res.imageUrl); setSelectedImage("link"); }
+        if (res.videoUrl) { setLinkPreviewVideoUrl(res.videoUrl); setSelectedImage("link-video"); }
+      }
+      setIsFetchingLinkPreview(false);
+    }, 900);
+
+    return () => { if (linkPreviewTimer.current) clearTimeout(linkPreviewTimer.current); };
+  }, [editedText]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const prefill = ({ prompt, text, imageUrls: urls, imagePrompt }: { prompt?: string; text?: string; imageUrls?: string[]; imagePrompt?: string }) => {
     if (prompt) setLastPrompt(prompt);
     if (text) {
@@ -221,6 +258,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       setLinkPreviewImageUrl(null);
       const urlMatch = text.match(/https?:\/\/[^\s\]()]+/);
       if (urlMatch) {
+        lastPreviewedUrl.current = urlMatch[0];
         setIsFetchingLinkPreview(true);
         fetchLinkPreview(urlMatch[0]).then((res) => {
           if (!("error" in res)) {
@@ -299,6 +337,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
 
         const urlMatch = textResult.text.match(/https?:\/\/[^\s\]()]+/);
         if (urlMatch) {
+          lastPreviewedUrl.current = urlMatch[0];
           setIsFetchingLinkPreview(true);
           fetchLinkPreview(urlMatch[0]).then((res) => {
             if (!("error" in res)) {
@@ -472,11 +511,14 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     setSelectedImage("generated");
     currentHistoryId.current = null;
     currentEntryPosted.current = false;
+    lastPreviewedUrl.current = null;
+    if (linkPreviewTimer.current) clearTimeout(linkPreviewTimer.current);
     setDraftSaveStatus(null);
     try { sessionStorage.removeItem(SESSION_KEY); } catch {}
   };
 
   const clearLinkPreview = () => {
+    lastPreviewedUrl.current = null;
     setLinkPreviewImageUrl(null);
     setLinkPreviewVideoUrl(null);
     setSelectedImage((prev) =>
