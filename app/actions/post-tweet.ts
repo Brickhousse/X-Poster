@@ -35,20 +35,47 @@ export async function postTweet(text: string, imageUrl?: string): Promise<PostRe
 
   const xAccessToken = decrypt(creds.x_access_token as string);
 
-  const isXPostUrl = (url: string) =>
-    /^https?:\/\/(twitter\.com|x\.com)\/(i\/status|[^/?#]+\/status)\/\d+/i.test(url);
+  // URLs that cannot be uploaded as media (X embeds, platform.twitter.com iframes)
+  const isNonUploadableUrl = (url: string) =>
+    /^https?:\/\/(twitter\.com|x\.com)\/(i\/status|[^/?#]+\/status)\/\d+/i.test(url) ||
+    url.startsWith("https://platform.twitter.com/");
+
+  const X_ALLOWED_MIME_TYPES = new Set([
+    "video/mp4", "video/webm", "video/mp2t", "video/quicktime",
+    "text/srt", "text/vtt",
+    "image/jpeg", "image/gif", "image/bmp", "image/png", "image/webp", "image/pjpeg", "image/tiff",
+    "model/gltf-binary", "model/vnd.usdz+zip",
+  ]);
+
+  const EXT_TO_MIME: Record<string, string> = {
+    ".mp4": "video/mp4", ".webm": "video/webm", ".ts": "video/mp2t", ".mov": "video/quicktime",
+    ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+    ".gif": "image/gif", ".webp": "image/webp", ".bmp": "image/bmp",
+  };
+
+  const resolveMimeType = (contentType: string | null, url: string): string | null => {
+    const ct = contentType?.split(";")[0].trim().toLowerCase() ?? "";
+    if (ct && ct !== "application/octet-stream" && X_ALLOWED_MIME_TYPES.has(ct)) return ct;
+    const extMatch = url.match(/\.(\w+)(?:\?|$)/);
+    const fromExt = extMatch ? EXT_TO_MIME[`.${extMatch[1].toLowerCase()}`] : null;
+    return fromExt ?? null;
+  };
 
   try {
     const client = new TwitterApi(xAccessToken);
 
-    if (parsed.data.imageUrl && !isXPostUrl(parsed.data.imageUrl)) {
+    if (parsed.data.imageUrl && !isNonUploadableUrl(parsed.data.imageUrl)) {
       const imgRes = await fetch(parsed.data.imageUrl);
       if (!imgRes.ok) {
         return { error: `Could not fetch media (${imgRes.status}). The URL may have expired — try regenerating.` };
       }
+      const mimeType = resolveMimeType(imgRes.headers.get("content-type"), parsed.data.imageUrl);
+      if (!mimeType) {
+        const ct = imgRes.headers.get("content-type")?.split(";")[0] ?? "unknown";
+        return { error: `Unsupported media type "${ct}". X accepts: JPEG, PNG, GIF, WebP, MP4, WebM, MOV.` };
+      }
       const buffer = Buffer.from(await imgRes.arrayBuffer());
-      const mimeType = (imgRes.headers.get("content-type")?.split(";")[0] ?? "image/jpeg") as EUploadMimeType;
-      const mediaId = await client.v2.uploadMedia(buffer, { media_type: mimeType });
+      const mediaId = await client.v2.uploadMedia(buffer, { media_type: mimeType as EUploadMimeType });
       const { data } = await client.v2.tweet({ text: parsed.data.text, media: { media_ids: [mediaId] } });
       const tweetUrl = `https://x.com/i/web/status/${data.id}`;
       return { id: data.id, tweetUrl };
