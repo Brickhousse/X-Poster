@@ -116,7 +116,18 @@ export async function updateHistoryItem(
   if (patch.tweetUrl !== undefined) updateData.tweet_url = patch.tweetUrl;
   if (patch.postedAt !== undefined) updateData.posted_at = patch.postedAt;
   if (patch.scheduledFor !== undefined) updateData.scheduled_for = patch.scheduledFor;
-  if (patch.imageUrl !== undefined) updateData.image_url = patch.imageUrl;
+  if (patch.imageUrl !== undefined) {
+    const supabaseBase = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const isAlreadyStored = patch.imageUrl?.startsWith(supabaseBase + "/storage/");
+    const isEmbedUrl = patch.imageUrl?.startsWith("https://platform.twitter.com/");
+    if (patch.imageUrl && !isAlreadyStored && !isEmbedUrl) {
+      // Upload external link preview image (og:image) to persistent Storage
+      const storageUrl = await uploadImageFromUrl(patch.imageUrl, userId);
+      updateData.image_url = storageUrl ?? patch.imageUrl;
+    } else {
+      updateData.image_url = patch.imageUrl;
+    }
+  }
   if (patch.imagePrompt !== undefined) updateData.image_prompt = patch.imagePrompt;
   if (patch.pinned !== undefined) updateData.pinned = patch.pinned;
 
