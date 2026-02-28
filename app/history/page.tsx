@@ -67,8 +67,13 @@ export default function HistoryPage() {
   const handleTogglePin = async (item: HistoryItem) => {
     setTogglingPin(item.id);
     const newPinned = !item.pinned;
-    await updateHistoryItem(item.id, { pinned: newPinned });
+    // Optimistic update
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, pinned: newPinned } : i)));
+    const result = await updateHistoryItem(item.id, { pinned: newPinned });
+    if ("error" in result) {
+      // Revert on failure
+      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, pinned: item.pinned } : i)));
+    }
     setTogglingPin(null);
   };
 
