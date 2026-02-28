@@ -45,7 +45,7 @@ export async function generateImage(prompt: string): Promise<ImageResult> {
           Authorization: `Bearer ${grokApiKey}`,
         },
         body: JSON.stringify({
-          model: "grok-imagine-image-pro",
+          model: "grok-imagine-image",
           prompt: parsed.data.prompt,
           n: 1,
           response_format: "url",
