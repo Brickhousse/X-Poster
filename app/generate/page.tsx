@@ -91,14 +91,6 @@ export default function GeneratePage() {
     });
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync edited post content back to the topic textarea so regeneration
-  // uses what the user has written, not the original short topic.
-  useEffect(() => {
-    if (editedText && generatedText !== null) {
-      setValue("prompt", editedText);
-    }
-  }, [editedText]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const charCountColor =
     editedText.length >= charLimit ? "text-red-400" :
     editedText.length >= charLimit * 0.9 ? "text-amber-400" :
