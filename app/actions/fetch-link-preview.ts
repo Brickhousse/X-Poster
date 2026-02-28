@@ -15,6 +15,14 @@ export async function fetchLinkPreview(
     return { imageUrl: null, videoUrl: parsed.data.url };
   }
 
+  // YouTube URLs — construct thumbnail directly, no scraping needed
+  const youtubePattern = /(?:youtube\.com\/watch\?(?:[^&]*&)*v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/i;
+  const ytMatch = parsed.data.url.match(youtubePattern);
+  if (ytMatch) {
+    const thumbnailUrl = `https://img.youtube.com/vi/${ytMatch[1]}/maxresdefault.jpg`;
+    return { imageUrl: thumbnailUrl, videoUrl: null };
+  }
+
   try {
     const res = await fetch(parsed.data.url, {
       headers: { "User-Agent": "Twitterbot/1.0" },

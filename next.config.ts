@@ -25,6 +25,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://clerk.plastit.app",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
+              "media-src 'self' https:",
               "connect-src 'self' https://clerk.plastit.app https://*.clerk.accounts.dev https://*.supabase.co https://challenges.cloudflare.com",
               "frame-src https://challenges.cloudflare.com",
               "worker-src 'self' blob:",
