@@ -245,7 +245,6 @@ export async function generateText(
         ],
         tools: [{ type: "web_search" }],
         max_output_tokens: 1200,
-        temperature: 0.8,
       }),
     });
 
@@ -253,7 +252,11 @@ export async function generateText(
       if (res.status === 401) return { error: "Grok API key is invalid or expired." };
       if (res.status === 429) return { error: "Grok API rate limit reached. Please try again later." };
       let detail = "";
-      try { const body = await res.json(); detail = body?.error?.message ?? body?.message ?? JSON.stringify(body); } catch {}
+      try {
+        const raw = await res.text();
+        console.error("Grok API error body:", raw);
+        try { const body = JSON.parse(raw); detail = body?.error?.message ?? body?.message ?? raw; } catch { detail = raw; }
+      } catch {}
       return { error: `Grok API error ${res.status}${detail ? `: ${detail}` : ""}. Please try again.` };
     }
 
