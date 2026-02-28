@@ -9,6 +9,7 @@ import { generateSchema, type GenerateFormValues } from "@/lib/generation-schema
 import { getSessionStatus } from "@/app/actions/get-session-status";
 import { getSettings } from "@/app/actions/get-settings";
 import { useGenerate } from "@/lib/generate-context";
+import { Tooltip } from "@/components/tooltip";
 
 export default function GeneratePage() {
   const {
@@ -194,58 +195,68 @@ export default function GeneratePage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="submit"
-              disabled={isGenerating}
-              className="flex items-center gap-2 rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isGenerating && !textFirstMode && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isGenerating && !textFirstMode ? "Generating…" : "Generate All"}
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit((v) => onSubmit(v, true))}
-              disabled={isGenerating}
-              className="flex items-center gap-2 rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isGenerating && textFirstMode && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isGenerating && textFirstMode ? "Generating…" : "Generate Text"}
-            </button>
-            {(editedText || anyImageUrl || textError || imagePool.some((e) => e.error !== null)) && (
+            <Tooltip text="Generate your post text and 3 images at once">
+              <button
+                type="submit"
+                disabled={isGenerating}
+                className="flex items-center gap-2 rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isGenerating && !textFirstMode && <Loader2 className="h-4 w-4 animate-spin" />}
+                {isGenerating && !textFirstMode ? "Generating…" : "Generate All"}
+              </button>
+            </Tooltip>
+            <Tooltip text="Generate only the post text first — Generate images once text looks good!">
               <button
                 type="button"
-                onClick={handleDiscard}
-                disabled={isGenerating || isPosting}
-                className="rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleSubmit((v) => onSubmit(v, true))}
+                disabled={isGenerating}
+                className="flex items-center gap-2 rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Reset
+                {isGenerating && textFirstMode && <Loader2 className="h-4 w-4 animate-spin" />}
+                {isGenerating && textFirstMode ? "Generating…" : "Generate Text"}
               </button>
+            </Tooltip>
+            {(editedText || anyImageUrl || textError || imagePool.some((e) => e.error !== null)) && (
+              <Tooltip text="Clear everything and start fresh">
+                <button
+                  type="button"
+                  onClick={handleDiscard}
+                  disabled={isGenerating || isPosting}
+                  className="rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Reset
+                </button>
+              </Tooltip>
             )}
             <div className="ml-2">
-              <button
-                type="button"
-                onClick={() => setNoveltyMode(!noveltyMode)}
-                className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  noveltyMode
-                    ? "border-violet-500 bg-violet-500/10 text-violet-400"
-                    : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
-                }`}
-              >
-                <Shuffle className="h-3 w-3" />
-                Fresh topics
-              </button>
+              <Tooltip text="Avoid repeating post topics that are in your history when generating this post">
+                <button
+                  type="button"
+                  onClick={() => setNoveltyMode(!noveltyMode)}
+                  className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    noveltyMode
+                      ? "border-violet-500 bg-violet-500/10 text-violet-400"
+                      : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                  }`}
+                >
+                  <Shuffle className="h-3 w-3" />
+                  Fresh topics
+                </button>
+              </Tooltip>
             </div>
           </div>
         </form>
 
         {/* Prompt Override active badge */}
         {hasPromptOverride && (
-          <a
-            href="/settings?tab=prompt-override"
-            className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-violet-500/40 bg-violet-500/10 px-3 py-1 text-xs font-medium text-violet-400 hover:bg-violet-500/20 transition-colors"
-          >
-            ⚡ Prompt Override active
-          </a>
+          <Tooltip text="Your custom prompt is applied. Click here to review it." position="bottom">
+            <a
+              href="/settings?tab=prompt-override"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-violet-500/40 bg-violet-500/10 px-3 py-1 text-xs font-medium text-violet-400 hover:bg-violet-500/20 transition-colors"
+            >
+              ⚡ Prompt Override active
+            </a>
+          </Tooltip>
         )}
 
         {/* Missing API key notice */}
@@ -290,15 +301,17 @@ export default function GeneratePage() {
         {/* Generate images — Text-first mode only */}
         {textFirstMode && generatedText !== null && imagePool.length === 0 && !isGenerating && (
           <div className="mt-4">
-            <button
-              type="button"
-              onClick={handleGenerateImages}
-              disabled={isGeneratingImages}
-              className="flex items-center gap-2 rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isGeneratingImages && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isGeneratingImages ? "Generating images…" : "Generate images"}
-            </button>
+            <Tooltip text="Create 3 image options for your post">
+              <button
+                type="button"
+                onClick={handleGenerateImages}
+                disabled={isGeneratingImages}
+                className="flex items-center gap-2 rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isGeneratingImages && <Loader2 className="h-4 w-4 animate-spin" />}
+                {isGeneratingImages ? "Generating images…" : "Generate images"}
+              </button>
+            </Tooltip>
           </div>
         )}
 
@@ -591,35 +604,41 @@ export default function GeneratePage() {
         {showActions && (
           <div className="mt-4 space-y-3">
             <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={handleApproveAndPost}
-                disabled={isPosting || !!postSuccess}
-                className="flex items-center gap-2 rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isPosting && <Loader2 className="h-4 w-4 animate-spin" />}
-                {isPosting ? "Posting…" : "Approve & Post"}
-              </button>
-              <button
-                type="button"
-                onClick={handleDiscard}
-                disabled={isPosting}
-                className="rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Discard
-              </button>
+              <Tooltip text="Post directly to your X account right now">
+                <button
+                  type="button"
+                  onClick={handleApproveAndPost}
+                  disabled={isPosting || !!postSuccess}
+                  className="flex items-center gap-2 rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isPosting && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {isPosting ? "Posting…" : "Approve & Post"}
+                </button>
+              </Tooltip>
+              <Tooltip text="Discard this post and return to a blank slate">
+                <button
+                  type="button"
+                  onClick={handleDiscard}
+                  disabled={isPosting}
+                  className="rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Discard
+                </button>
+              </Tooltip>
             </div>
 
             {/* Schedule toggle */}
             {!postSuccess && !scheduleSuccess && (
               <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={() => setShowSchedule((v) => !v)}
-                  className="text-xs text-slate-500 underline hover:text-slate-300"
-                >
-                  {showSchedule ? "Cancel scheduling" : "Schedule for later"}
-                </button>
+                <Tooltip text="Schedule this post to go live at a specific time">
+                  <button
+                    type="button"
+                    onClick={() => setShowSchedule((v) => !v)}
+                    className="text-xs text-slate-500 underline hover:text-slate-300"
+                  >
+                    {showSchedule ? "Cancel scheduling" : "Schedule for later"}
+                  </button>
+                </Tooltip>
                 {showSchedule && (
                   <div className="flex items-center gap-2">
                     <input
@@ -629,14 +648,16 @@ export default function GeneratePage() {
                       min={new Date().toISOString().slice(0, 16)}
                       className="rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
                     />
-                    <button
-                      type="button"
-                      onClick={() => { handleSchedule(scheduledFor); setShowSchedule(false); setScheduledFor(""); }}
-                      disabled={!scheduledFor}
-                      className="rounded-md border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      Save schedule
-                    </button>
+                    <Tooltip text="Save the scheduled time and queue the post">
+                      <button
+                        type="button"
+                        onClick={() => { handleSchedule(scheduledFor); setShowSchedule(false); setScheduledFor(""); }}
+                        disabled={!scheduledFor}
+                        className="rounded-md border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Save schedule
+                      </button>
+                    </Tooltip>
                   </div>
                 )}
               </div>
