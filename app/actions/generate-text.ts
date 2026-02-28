@@ -244,7 +244,7 @@ export async function generateText(
           { role: "user", content: userMessage },
         ],
         tools: [{ type: "web_search" }],
-        max_tokens: 1200,
+        max_output_tokens: 1200,
         temperature: 0.8,
       }),
     });
