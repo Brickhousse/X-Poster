@@ -308,7 +308,7 @@ export default function GeneratePage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-medium text-slate-300">Choose an image or video</h2>
-                <span className="text-xs text-slate-600">grok-imagine-image</span>
+                <span className="text-xs text-slate-600">Model: grok-imagine-image</span>
               </div>
               <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-500 hover:text-slate-300">
                 <input
