@@ -166,6 +166,8 @@ export default function GeneratePage() {
   const showLinkImageCard = !isGenerating && !!linkPreviewImageUrl;
   const showLinkVideoCard = !isGenerating && !!linkPreviewVideoUrl;
   const isXEmbedUrl = (url: string) => url.startsWith("https://platform.twitter.com/embed/");
+  const showImageSection = anyImageVisible || (generatedText !== null && !isGenerating);
+  const showImageGrid = anyImageVisible || showLinkImageCard || showLinkVideoCard;
 
   const showActions = (generatedText !== null || textError || imagePool.length > 0) && !isGenerating;
 
@@ -317,12 +319,12 @@ export default function GeneratePage() {
         )}
 
         {/* Image style selector — 3-card grid */}
-        {anyImageVisible && (
+        {showImageSection && (
           <div className="mt-6 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-medium text-slate-300">Choose an image or video</h2>
-                <span className="text-xs text-slate-600">Model: grok-imagine-image</span>
+                {anyImageVisible && <span className="text-xs text-slate-600">Model: grok-imagine-image</span>}
               </div>
               <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-500 hover:text-slate-300">
                 <input
@@ -335,7 +337,7 @@ export default function GeneratePage() {
                 No image
               </label>
             </div>
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+            {showImageGrid && <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
               {imagePool.map((entry, idx) => {
                 const isSelected = selectedImage === "generated" && selectedPoolIndex === idx;
                 return (
@@ -432,7 +434,7 @@ export default function GeneratePage() {
                   </p>
                 </button>
               )}
-            </div>
+            </div>}
 
             {!isGenerating && (
               <div className="space-y-2">
