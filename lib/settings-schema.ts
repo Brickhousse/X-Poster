@@ -28,6 +28,7 @@ export const promptOverrideSchema = z.object({
     image2: imageSlotSchema,
     image3: imageSlotSchema,
   }).optional(),
+  xVideoSearch: z.boolean().optional(),
 }).nullable();
 
 export type PromptOverrideFormValues = z.infer<typeof promptOverrideSchema>;

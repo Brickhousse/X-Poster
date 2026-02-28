@@ -55,6 +55,7 @@ export default function SettingsPage() {
   const [niche, setNiche] = useState("");
   const [avoid, setAvoid] = useState("");
   const [allowFaces, setAllowFaces] = useState(false);
+  const [xVideoSearch, setXVideoSearch] = useState(false);
   const [imgNames, setImgNames] = useState<string[]>(["", "", ""]);
   const [imgDescs, setImgDescs] = useState<string[]>([
     DEFAULT_IMAGE_DESCRIPTIONS[0],
@@ -89,6 +90,7 @@ export default function SettingsPage() {
         if (po.textStyle?.niche) setNiche(po.textStyle.niche);
         if (po.textStyle?.avoid) setAvoid(po.textStyle.avoid);
         if (po.imageStyles?.allowFaces !== undefined) setAllowFaces(po.imageStyles.allowFaces);
+        if (po.xVideoSearch === true) setXVideoSearch(true);
         setImgNames([
           po.imageStyles?.image1?.name ?? "",
           po.imageStyles?.image2?.name ?? "",
@@ -187,6 +189,7 @@ export default function SettingsPage() {
       image2: { name: imgNames[1].trim() || undefined, description: imgDescs[1].trim() || undefined },
       image3: { name: imgNames[2].trim() || undefined, description: imgDescs[2].trim() || undefined },
     },
+    xVideoSearch: xVideoSearch || undefined,
   });
 
   const handleSaveOverride = async () => {
@@ -217,6 +220,7 @@ export default function SettingsPage() {
     setNiche("");
     setAvoid("");
     setAllowFaces(false);
+    setXVideoSearch(false);
     setImgNames(["", "", ""]);
     setImgDescs([
       DEFAULT_IMAGE_DESCRIPTIONS[0],
@@ -677,6 +681,36 @@ export default function SettingsPage() {
                 )}
               </div>
             ))}
+          </section>
+
+          {/* Section 4: X Features */}
+          <section className="space-y-4">
+            <h2 className="text-sm font-medium text-slate-300">X Features</h2>
+
+            <label className="flex cursor-pointer items-center gap-3">
+              <div className="relative flex-shrink-0">
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={xVideoSearch}
+                  onChange={(e) => setXVideoSearch(e.target.checked)}
+                />
+                <div className={`h-5 w-9 rounded-full transition-colors ${
+                  xVideoSearch ? "bg-violet-600" : "bg-slate-700"
+                }`} />
+                <div className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                  xVideoSearch ? "translate-x-4" : "translate-x-0"
+                }`} />
+              </div>
+              <div>
+                <span className="text-sm text-slate-300">X Video Search</span>
+                <p className="text-xs text-slate-500">
+                  {xVideoSearch
+                    ? "Grok will search X for a relevant recent video post and embed its URL in the generated post."
+                    : "When enabled, Grok searches X/Twitter for a relevant recent video post to include."}
+                </p>
+              </div>
+            </label>
           </section>
 
           {/* Save / Clear */}

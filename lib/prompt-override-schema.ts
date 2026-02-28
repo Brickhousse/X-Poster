@@ -13,6 +13,7 @@ export interface PromptOverride {
     image2?: { name?: string; description?: string };
     image3?: { name?: string; description?: string };
   };
+  xVideoSearch?: boolean;
 }
 
 export const DEFAULT_IMAGE_DESCRIPTIONS = [
@@ -52,5 +53,6 @@ export function isNonDefaultOverride(override: PromptOverride | null | undefined
     if (is.image2?.name?.trim() || is.image2?.description?.trim()) return true;
     if (is.image3?.name?.trim() || is.image3?.description?.trim()) return true;
   }
+  if (override.xVideoSearch === true) return true;
   return false;
 }
