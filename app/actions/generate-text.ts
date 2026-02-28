@@ -252,7 +252,9 @@ export async function generateText(
     if (!res.ok) {
       if (res.status === 401) return { error: "Grok API key is invalid or expired." };
       if (res.status === 429) return { error: "Grok API rate limit reached. Please try again later." };
-      return { error: `Grok API error ${res.status}. Please try again.` };
+      let detail = "";
+      try { const body = await res.json(); detail = body?.error?.message ?? body?.message ?? JSON.stringify(body); } catch {}
+      return { error: `Grok API error ${res.status}${detail ? `: ${detail}` : ""}. Please try again.` };
     }
 
     const data = (await res.json()) as {
