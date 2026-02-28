@@ -7,7 +7,7 @@ export const settingsSchema = z.object({
 export type SettingsFormValues = z.infer<typeof settingsSchema>;
 
 const textStyleSchema = z.object({
-  tone: z.enum(["professional", "casual", "humorous", "academic", "bold"]).optional(),
+  tone: z.string().max(200).optional(),
   emojiUsage: z.enum(["sparingly", "none", "moderate"]).optional(),
   audience: z.string().max(200).optional(),
   niche: z.string().max(200).optional(),

@@ -42,8 +42,8 @@ function buildSystemPrompt(override?: PromptOverride | null): string {
   // Build user preferences block (injected just before EXAMPLE)
   const prefLines: string[] = [];
   const ts = override?.textStyle;
-  if (ts?.tone && ts.tone !== "professional") {
-    prefLines.push(`- Tone: ${ts.tone.charAt(0).toUpperCase() + ts.tone.slice(1)}`);
+  if (ts?.tone?.trim()) {
+    prefLines.push(`- Tone: ${ts.tone.trim()}`);
   }
   if (ts?.emojiUsage && ts.emojiUsage !== "sparingly") {
     const emojiLabels: Record<string, string> = { none: "None", moderate: "Moderate (3–5)" };

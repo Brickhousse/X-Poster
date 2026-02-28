@@ -1,7 +1,7 @@
 export interface PromptOverride {
   brandVoice?: string;
   textStyle?: {
-    tone?: "professional" | "casual" | "humorous" | "academic" | "bold";
+    tone?: string;
     emojiUsage?: "sparingly" | "none" | "moderate";
     audience?: string;
     niche?: string;
@@ -39,7 +39,7 @@ export function isNonDefaultOverride(override: PromptOverride | null | undefined
   if (override.brandVoice?.trim()) return true;
   const ts = override.textStyle;
   if (ts) {
-    if (ts.tone && ts.tone !== "professional") return true;
+    if (ts.tone?.trim()) return true;
     if (ts.emojiUsage && ts.emojiUsage !== "sparingly") return true;
     if (ts.audience?.trim()) return true;
     if (ts.niche?.trim()) return true;

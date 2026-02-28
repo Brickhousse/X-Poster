@@ -18,14 +18,6 @@ import type { PromptOverride } from "@/lib/prompt-override-schema";
 
 type Tab = "general" | "prompt-override";
 
-const TONE_OPTIONS = [
-  { value: "professional", label: "Professional" },
-  { value: "casual", label: "Casual" },
-  { value: "humorous", label: "Humorous" },
-  { value: "academic", label: "Academic" },
-  { value: "bold", label: "Bold" },
-] as const;
-
 const EMOJI_OPTIONS = [
   { value: "sparingly", label: "Sparingly (1–3)" },
   { value: "none", label: "None" },
@@ -57,7 +49,7 @@ export default function SettingsPage() {
 
   // ── Prompt Override tab state ──────────────────────────────────────────
   const [brandVoice, setBrandVoice] = useState("");
-  const [tone, setTone] = useState<"professional" | "casual" | "humorous" | "academic" | "bold">("professional");
+  const [tone, setTone] = useState("");
   const [emojiUsage, setEmojiUsage] = useState<"sparingly" | "none" | "moderate">("sparingly");
   const [audience, setAudience] = useState("");
   const [niche, setNiche] = useState("");
@@ -91,7 +83,7 @@ export default function SettingsPage() {
       const po = s.promptOverride;
       if (po) {
         if (po.brandVoice) setBrandVoice(po.brandVoice);
-        if (po.textStyle?.tone) setTone(po.textStyle.tone);
+        if (po.textStyle?.tone) setTone(po.textStyle.tone ?? "");
         if (po.textStyle?.emojiUsage) setEmojiUsage(po.textStyle.emojiUsage);
         if (po.textStyle?.audience) setAudience(po.textStyle.audience);
         if (po.textStyle?.niche) setNiche(po.textStyle.niche);
@@ -183,7 +175,7 @@ export default function SettingsPage() {
   const buildOverridePayload = (): PromptOverride => ({
     brandVoice: brandVoice.trim() || undefined,
     textStyle: {
-      tone: tone !== "professional" ? tone : undefined,
+      tone: tone.trim() || undefined,
       emojiUsage: emojiUsage !== "sparingly" ? emojiUsage : undefined,
       audience: audience.trim() || undefined,
       niche: niche.trim() || undefined,
@@ -219,7 +211,7 @@ export default function SettingsPage() {
     setOverrideSaving(false);
     // Reset form
     setBrandVoice("");
-    setTone("professional");
+    setTone("");
     setEmojiUsage("sparingly");
     setAudience("");
     setNiche("");
@@ -516,17 +508,13 @@ export default function SettingsPage() {
               {/* Tone */}
               <div className="space-y-1">
                 <label className="block text-xs text-slate-400">Tone</label>
-                <select
+                <input
+                  type="text"
                   value={tone}
-                  onChange={(e) => setTone(e.target.value as typeof tone)}
-                  className="w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
-                >
-                  {TONE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}{o.value === "professional" ? " (default)" : ""}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(e) => setTone(e.target.value)}
+                  placeholder="e.g. dry wit, contrarian, poetic"
+                  className="w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
+                />
               </div>
 
               {/* Emoji usage */}
