@@ -27,7 +27,7 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: blob: https:",
               "media-src 'self' https:",
               "connect-src 'self' https://clerk.plastit.app https://*.clerk.accounts.dev https://*.supabase.co https://challenges.cloudflare.com",
-              "frame-src https://challenges.cloudflare.com",
+              "frame-src https://challenges.cloudflare.com https://platform.twitter.com",
               "worker-src 'self' blob:",
               "frame-ancestors 'none'",
             ].join("; "),

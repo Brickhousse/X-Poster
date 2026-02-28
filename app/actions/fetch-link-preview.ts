@@ -9,10 +9,12 @@ export async function fetchLinkPreview(
   const parsed = schema.safeParse({ url });
   if (!parsed.success) return { error: "Invalid URL" };
 
-  // X/Twitter post URLs auto-embed when included in a tweet — no need to scrape
-  const xPostPattern = /^https?:\/\/(twitter\.com|x\.com)\/(i\/status|[^/?#]+\/status)\/\d+/i;
-  if (xPostPattern.test(parsed.data.url)) {
-    return { imageUrl: null, videoUrl: parsed.data.url };
+  // X/Twitter post URLs — extract tweet ID and return official embed URL
+  const xPostPattern = /(twitter\.com|x\.com)\/(?:i\/status|[^/?#]+\/status)\/(\d+)/i;
+  const xMatch = parsed.data.url.match(xPostPattern);
+  if (xMatch) {
+    const tweetId = xMatch[2];
+    return { imageUrl: null, videoUrl: `https://platform.twitter.com/embed/Tweet.html?id=${tweetId}&theme=dark` };
   }
 
   // YouTube URLs — construct thumbnail directly, no scraping needed
