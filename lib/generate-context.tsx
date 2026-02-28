@@ -190,11 +190,18 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const [r1, r2, r3] = await Promise.all([
-        generateImage(imagePrompts[0]),
-        generateImage(imagePrompts[1]),
-        generateImage(imagePrompts[2]),
-      ]);
+      type IR = { url: string } | { error: string };
+      const fallback: IR = { error: "Image generation failed. Please try again." };
+      let r1: IR = fallback, r2: IR = fallback, r3: IR = fallback;
+      try {
+        [r1, r2, r3] = await Promise.all([
+          generateImage(imagePrompts[0]),
+          generateImage(imagePrompts[1]),
+          generateImage(imagePrompts[2]),
+        ]);
+      } catch {
+        // Server action threw — defaults already set to fallback errors
+      }
 
       setImageUrls([
         "error" in r1 ? null : r1.url,

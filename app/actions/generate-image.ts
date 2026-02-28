@@ -8,7 +8,7 @@ import { decrypt } from "@/lib/encryption";
 const GROK_IMAGE_URL = "https://api.x.ai/v1/images/generations";
 
 const schema = z.object({
-  prompt: z.string().min(1).max(1000),
+  prompt: z.string().min(1).max(4000),
 });
 
 type ImageResult = { url: string } | { error: string };
@@ -35,36 +35,52 @@ export async function generateImage(prompt: string): Promise<ImageResult> {
 
   const grokApiKey = decrypt(creds.grok_api_key as string);
 
-  try {
-    const res = await fetch(GROK_IMAGE_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${grokApiKey}`,
-      },
-      body: JSON.stringify({
-        model: "grok-imagine-image-pro",
-        prompt: parsed.data.prompt,
-        n: 1,
-        response_format: "url",
-      }),
-    });
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetch(GROK_IMAGE_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${grokApiKey}`,
+        },
+        body: JSON.stringify({
+          model: "grok-imagine-image-pro",
+          prompt: parsed.data.prompt,
+          n: 1,
+          response_format: "url",
+        }),
+      });
 
-    if (!res.ok) {
+      if (res.ok) {
+        const data = (await res.json()) as {
+          data: { url?: string; b64_json?: string }[];
+        };
+        const url = data.data?.[0]?.url;
+        if (!url) return { error: "Grok Imagine returned no image URL." };
+        return { url };
+      }
+
+      // Non-retryable errors
       if (res.status === 401) return { error: "Grok API key is invalid or expired." };
+      if (res.status === 400) return { error: `Grok Imagine error ${res.status}. Please try again.` };
+
+      // Retryable: rate limit or server error
+      if (attempt < MAX_ATTEMPTS && (res.status === 429 || res.status >= 500)) {
+        await new Promise((r) => setTimeout(r, attempt * 1500));
+        continue;
+      }
+
       if (res.status === 429) return { error: "Grok API rate limit reached. Please try again later." };
       return { error: `Grok Imagine error ${res.status}. Please try again.` };
+    } catch {
+      if (attempt < MAX_ATTEMPTS) {
+        await new Promise((r) => setTimeout(r, attempt * 1500));
+        continue;
+      }
+      return { error: "Network error. Please check your connection and try again." };
     }
-
-    const data = (await res.json()) as {
-      data: { url?: string; b64_json?: string }[];
-    };
-
-    const url = data.data?.[0]?.url;
-    if (!url) return { error: "Grok Imagine returned no image URL." };
-
-    return { url };
-  } catch {
-    return { error: "Network error. Please check your connection and try again." };
   }
+
+  return { error: "Image generation failed after retries. Please try again." };
 }
