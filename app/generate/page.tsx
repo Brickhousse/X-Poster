@@ -18,6 +18,7 @@ export default function GeneratePage() {
     editedText, charLimit,
     linkPreviewImageUrl, isFetchingLinkPreview, selectedImage,
     noveltyMode, setNoveltyMode,
+    textFirstMode, setTextFirstMode, isGeneratingImages, handleGenerateImages,
     setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedPoolIndex,
     customImageUrl, setCustomImageUrl,
     onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage, handleRegenerateOneImage,
@@ -101,7 +102,7 @@ export default function GeneratePage() {
   };
 
   const anyImageUrl = imagePool.find((e) => e.url !== null)?.url ?? null;
-  const anyImageVisible = imagePool.length > 0 || isGenerating || isRegeneratingImage;
+  const anyImageVisible = imagePool.length > 0 || isGenerating || isRegeneratingImage || isGeneratingImages;
 
   const activeImageUrl =
     selectedImage === "generated"
@@ -195,6 +196,18 @@ export default function GeneratePage() {
             <Shuffle className="h-3 w-3" />
             Fresh topics
           </button>
+          <button
+            type="button"
+            onClick={() => setTextFirstMode(!textFirstMode)}
+            className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+              textFirstMode
+                ? "border-cyan-500 bg-cyan-500/10 text-cyan-400"
+                : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+            }`}
+          >
+            <MessageCircle className="h-3 w-3" />
+            Text first
+          </button>
           {(editedText || anyImageUrl || textError || imagePool.some((e) => e.error !== null)) && (
             <button
               type="button"
@@ -239,6 +252,21 @@ export default function GeneratePage() {
               </p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Generate images — Text-first mode only */}
+      {textFirstMode && generatedText !== null && imagePool.length === 0 && !isGenerating && (
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={handleGenerateImages}
+            disabled={isGeneratingImages}
+            className="flex items-center gap-2 rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isGeneratingImages && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isGeneratingImages ? "Generating images…" : "Generate images"}
+          </button>
         </div>
       )}
 
@@ -544,7 +572,7 @@ export default function GeneratePage() {
 
           {/* Image — 3 states */}
           <div className="mt-3">
-            {(isGenerating || isRegeneratingImage) && !activeImageUrl ? (
+            {(isGenerating || isRegeneratingImage || isGeneratingImages) && !activeImageUrl ? (
               <div className="h-48 w-full animate-pulse rounded-xl bg-slate-800" />
             ) : selectedImage === "none" ? null
             : selectedImage === "link" && linkPreviewImageUrl ? (

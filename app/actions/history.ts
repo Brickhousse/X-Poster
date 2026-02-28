@@ -150,6 +150,31 @@ export async function appendHistoryImage(
   return { storageUrl };
 }
 
+export async function updateHistoryImages(
+  id: string,
+  grokUrls: string[]
+): Promise<{ storageUrls: string[] } | { error: string }> {
+  const { userId } = await auth();
+  if (!userId) return { error: "Not authenticated." };
+
+  const results = await Promise.all(grokUrls.map((u) => uploadImageFromUrl(u, userId)));
+  const storageUrls = results.filter((u): u is string => u !== null);
+
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("posts")
+    .update({
+      image_url: storageUrls[0] ?? null,
+      image_urls: storageUrls,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("user_id", userId);
+
+  if (error) return { error: "Failed to update history images." };
+  return { storageUrls };
+}
+
 export async function deleteHistoryItem(id: string): Promise<MutateResult> {
   const { userId } = await auth();
   if (!userId) return { error: "Not authenticated." };
