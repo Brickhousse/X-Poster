@@ -37,6 +37,7 @@ interface GenerateState {
   postSuccess: { tweetUrl: string } | null;
   postError: string | null;
   scheduleSuccess: boolean;
+  draftSaveStatus: "unsaved" | "saved" | null;
   lastPrompt: string;
   editedText: string;
   charLimit: number;
@@ -102,6 +103,9 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
   const [promptOverride, setPromptOverride] = useState<PromptOverride | null>(null);
   const currentHistoryId = useRef<string | null>(null);
+  const currentEntryPosted = useRef(false);
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [draftSaveStatus, setDraftSaveStatus] = useState<"unsaved" | "saved" | null>(null);
 
   // Load prompt override from settings on mount
   useEffect(() => {
@@ -173,6 +177,41 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       lastPrompt, lastImagePrompts, whyItWorks, selectedImage, customImageUrl,
       linkPreviewImageUrl, linkPreviewVideoUrl, noveltyMode, textFirstMode, postSuccess, scheduleSuccess]);
 
+  // Auto-save edits to DB; create a fresh draft entry after posting
+  useEffect(() => {
+    if (!editedText || !currentHistoryId.current) return;
+
+    if (currentEntryPosted.current) {
+      // User is editing after posting — lock the posted entry and start a new draft
+      currentEntryPosted.current = false; // only fire once per posting
+      addHistoryItem({
+        prompt: lastPrompt,
+        editedText,
+        imageUrl: null,
+        allImageUrls: [],
+        status: "draft",
+        createdAt: new Date().toISOString(),
+      }).then((result) => {
+        if ("id" in result) currentHistoryId.current = result.id;
+      });
+      return;
+    }
+
+    // Normal case: debounce-save the current edit to the existing draft entry
+    setDraftSaveStatus("unsaved");
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      if (currentHistoryId.current) {
+        updateHistoryItem(currentHistoryId.current, { editedText }).then(() => {
+          setDraftSaveStatus("saved");
+        });
+      }
+    }, 1500);
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    };
+  }, [editedText]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const prefill = ({ prompt, text, imageUrls: urls, imagePrompt }: { prompt?: string; text?: string; imageUrls?: string[]; imagePrompt?: string }) => {
     if (prompt) setLastPrompt(prompt);
     if (text) {
@@ -221,6 +260,9 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     setPostSuccess(null);
     setPostError(null);
     setScheduleSuccess(false);
+    currentHistoryId.current = null;
+    currentEntryPosted.current = false;
+    setDraftSaveStatus(null);
 
     setLastPrompt(values.prompt);
 
@@ -361,6 +403,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
         setPostError(result.error);
       } else {
         setPostSuccess({ tweetUrl: result.tweetUrl });
+        currentEntryPosted.current = true;
         if (currentHistoryId.current) {
           await updateHistoryItem(currentHistoryId.current, {
             editedText,
@@ -427,6 +470,8 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     setCustomImageUrl(null);
     setSelectedImage("generated");
     currentHistoryId.current = null;
+    currentEntryPosted.current = false;
+    setDraftSaveStatus(null);
     try { sessionStorage.removeItem(SESSION_KEY); } catch {}
   };
 
@@ -440,7 +485,10 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
 
   const handleRegenerateImage = async (overridePrompts?: [string, string, string]) => {
     setIsRegeneratingImage(true);
-    const prompts: [string, string, string] = overridePrompts ?? lastImagePrompts ?? [editedText || lastPrompt, editedText || lastPrompt, editedText || lastPrompt];
+    const hasEdits = !!(editedText && generatedText && editedText !== generatedText);
+    const prompts: [string, string, string] = overridePrompts
+      ?? (hasEdits ? [editedText, editedText, editedText] : lastImagePrompts)
+      ?? [editedText || lastPrompt, editedText || lastPrompt, editedText || lastPrompt];
 
     // Reset pool to 3 fresh loading entries
     poolEntryId.current = 0;
@@ -536,7 +584,8 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     const newId = poolEntryId.current++;
     setImagePool((prev) => [...prev, { id: newId, url: null, error: null, style, loading: true }]);
 
-    const prompt = lastImagePrompts?.[style] ?? (editedText || lastPrompt);
+    const hasEdits = !!(editedText && generatedText && editedText !== generatedText);
+    const prompt = (hasEdits ? editedText : lastImagePrompts?.[style]) ?? editedText ?? lastPrompt;
     try {
       const result = await generateImage(prompt);
       const grokUrl = "error" in result ? null : result.url;
@@ -579,7 +628,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       generatedText, textError, imagePool, selectedPoolIndex, isRegeneratingStyle,
       styleLabels: STYLE_LABELS,
       missingKey, isGenerating, isRegeneratingImage, whyItWorks, lastImagePrompts,
-      isPosting, postSuccess, postError, scheduleSuccess,
+      isPosting, postSuccess, postError, scheduleSuccess, draftSaveStatus,
       lastPrompt, editedText, charLimit,
       linkPreviewImageUrl, linkPreviewVideoUrl, isFetchingLinkPreview, selectedImage, customImageUrl,
       noveltyMode, setNoveltyMode,

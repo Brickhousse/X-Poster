@@ -14,7 +14,7 @@ export default function GeneratePage() {
   const {
     generatedText, textError, imagePool, selectedPoolIndex, isRegeneratingStyle,
     missingKey, isGenerating, isRegeneratingImage, whyItWorks,
-    isPosting, postSuccess, postError, scheduleSuccess,
+    isPosting, postSuccess, postError, scheduleSuccess, draftSaveStatus,
     editedText, charLimit,
     linkPreviewImageUrl, linkPreviewVideoUrl, isFetchingLinkPreview, selectedImage,
     noveltyMode, setNoveltyMode,
@@ -89,6 +89,14 @@ export default function GeneratePage() {
       setCharLimit(xTier === "premium" ? 25000 : 280);
     });
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync edited post content back to the topic textarea so regeneration
+  // uses what the user has written, not the original short topic.
+  useEffect(() => {
+    if (editedText && generatedText !== null) {
+      setValue("prompt", editedText);
+    }
+  }, [editedText]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const charCountColor =
     editedText.length >= charLimit ? "text-red-400" :
@@ -263,6 +271,11 @@ export default function GeneratePage() {
                   onChange={(e) => setEditedText(e.target.value)}
                   className="w-full resize-none rounded-md border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-slate-100 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
                 />
+                {draftSaveStatus && (
+                  <p className={`text-xs ${draftSaveStatus === "saved" ? "text-slate-600" : "text-amber-500"}`}>
+                    {draftSaveStatus === "saved" ? "Draft saved" : "Unsaved"}
+                  </p>
+                )}
                 <p className={`text-right text-xs ${charCountColor}`}>
                   {editedText.length}/{charLimit.toLocaleString()}
                 </p>
