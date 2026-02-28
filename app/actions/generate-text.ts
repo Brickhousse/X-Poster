@@ -82,6 +82,14 @@ RULES FOR THE X POST
 - End with a strong, insightful closing statement. No CTAs, questions, "tag/save/repost" or similar.
 - **Hashtags are ALWAYS the very last line** — nothing comes after them. Format: 2–3 specific, searchable hashtags on a single line.
 
+STRUCTURE & FORMATTING (non-negotiable)
+- The hook (first line) ALWAYS stands alone — blank line immediately after it, before the next sentence.
+- Separate each distinct paragraph or thought with a blank line. Maximum 3 sentences per block.
+- The closing statement ALWAYS stands on its own line, separated from the body by a blank line above it.
+- Hashtags are always the final line, separated from the closing by a blank line. Nothing comes after hashtags.
+- Never produce a post as a single unbroken block of text. Every post must have at least 2 blank-line separations.
+- Target: 3–5 content lines spread across 2–3 visual blocks (hook / body / close), then hashtags.
+
 RULES FOR THE THREE IMAGE PROMPTS
 All three must be detailed, ready-to-paste, premium (8K, modern, dramatic lighting), boldly symbolic/metaphorical, conceptually rich, and attention-grabbing.${faceRule} Add text overlay's for impact, only if value added, of the hook phrase. Never plain, generic or low-quality.
 
@@ -98,8 +106,13 @@ User: "Benefits of cold plunges for entrepreneurs"
 
 **X Post**
 At 5 a.m. the ice water hits harder than any boardroom decision ❄️.
-For the founders who've built real companies, that shock resets the nervous system the same way a brutal market correction resets complacency.
-It's the same principle that turned stoic philosophers into clearer thinkers centuries ago — discipline forged in discomfort.
+
+For the founders who've built real companies, that shock resets the nervous system
+the same way a brutal market correction resets complacency — discomfort as a
+feature, not a bug.
+
+Stoic philosophers called it voluntary hardship. The science calls it hormesis.
+Either way, it's the oldest performance edge there is.
 
 #ColdPlunge #FounderRoutines #MentalEdge
 

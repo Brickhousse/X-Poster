@@ -21,7 +21,7 @@ export default function GeneratePage() {
     textFirstMode, isGeneratingImages, handleGenerateImages,
     setEditedText, setCharLimit, setMissingKey, setSelectedImage, setSelectedPoolIndex,
     customImageUrl, setCustomImageUrl,
-    hasPromptOverride,
+    hasPromptOverride, promptOverride,
     onSubmit, handleApproveAndPost, handleSchedule, handleDiscard, handleRegenerateImage, handleRegenerateOneImage,
     clearLinkPreview, prefill,
   } = useGenerate();
@@ -95,9 +95,12 @@ export default function GeneratePage() {
     editedText.length >= charLimit * 0.9 ? "text-amber-400" :
     "text-slate-500";
 
-  const SHORT_STYLE_LABELS: Record<0 | 1 | 2, string> = {
-    0: "Cinematic", 1: "Surreal", 2: "Bold Graphic",
-  };
+  const DEFAULT_SHORT_LABELS = ["Cinematic", "Surreal", "Bold Graphic"] as const;
+  const imageStyleLabels: [string, string, string] = [
+    promptOverride?.imageStyles?.image1?.name?.trim() || DEFAULT_SHORT_LABELS[0],
+    promptOverride?.imageStyles?.image2?.name?.trim() || DEFAULT_SHORT_LABELS[1],
+    promptOverride?.imageStyles?.image3?.name?.trim() || DEFAULT_SHORT_LABELS[2],
+  ];
 
   const anyImageUrl = imagePool.find((e) => e.url !== null)?.url ?? null;
   const anyImageVisible = imagePool.length > 0 || isGenerating || isRegeneratingImage || isGeneratingImages;
@@ -327,20 +330,20 @@ export default function GeneratePage() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={entry.url}
-                        alt={SHORT_STYLE_LABELS[entry.style]}
+                        alt={imageStyleLabels[entry.style]}
                         className="h-24 w-full rounded object-cover"
                       />
                     ) : (
                       <div className="h-24 w-full rounded bg-slate-800" />
                     )}
                     <div className="mt-1 flex items-center justify-between px-0.5">
-                      <p className="text-xs text-slate-400 leading-tight">{SHORT_STYLE_LABELS[entry.style]}</p>
+                      <p className="text-xs text-slate-400 leading-tight">{imageStyleLabels[entry.style]}</p>
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); handleRegenerateOneImage(entry.style); }}
                         disabled={entry.loading || isGenerating || isRegeneratingImage || isRegeneratingStyle[entry.style]}
                         className="text-slate-600 hover:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none"
-                        title={`Regenerate ${SHORT_STYLE_LABELS[entry.style]}`}
+                        title={`Regenerate ${imageStyleLabels[entry.style]}`}
                       >
                         <RotateCcw className="h-3 w-3" />
                       </button>
