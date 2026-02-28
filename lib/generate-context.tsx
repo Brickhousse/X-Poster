@@ -96,6 +96,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   const [charLimit, setCharLimit] = useState(280);
   const [linkPreviewImageUrl, setLinkPreviewImageUrl] = useState<string | null>(null);
   const [linkPreviewVideoUrl, setLinkPreviewVideoUrl] = useState<string | null>(null);
+  const [linkPreviewSourceUrl, setLinkPreviewSourceUrl] = useState<string | null>(null);
   const [isFetchingLinkPreview, setIsFetchingLinkPreview] = useState(false);
   const [selectedImage, setSelectedImage] = useState<"generated" | "link" | "link-video" | "custom" | "none">("generated");
   const [customImageUrl, setCustomImageUrl] = useState<string | null>(null);
@@ -441,7 +442,20 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
           : selectedImage === "link-video" ? linkPreviewVideoUrl
           : selectedImage === "custom" ? customImageUrl
           : null;
-      const result = await postTweet(editedText, imageToPost ?? undefined);
+
+      // For link preview cards (non-X-embed), X only shows a card when the source URL
+      // is in the tweet body. Append it if the user didn't already include it.
+      const isXEmbed = linkPreviewVideoUrl?.startsWith("https://platform.twitter.com/embed/");
+      const needsUrlInBody =
+        (selectedImage === "link" || selectedImage === "link-video") &&
+        !isXEmbed &&
+        linkPreviewSourceUrl &&
+        !editedText.includes(linkPreviewSourceUrl);
+      const tweetText = needsUrlInBody
+        ? `${editedText}\n\n${linkPreviewSourceUrl}`
+        : editedText;
+
+      const result = await postTweet(tweetText, imageToPost ?? undefined);
       if ("error" in result) {
         setPostError(result.error);
       } else {
@@ -449,7 +463,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
         currentEntryPosted.current = true;
         if (currentHistoryId.current) {
           await updateHistoryItem(currentHistoryId.current, {
-            editedText,
+            editedText: tweetText,
             imageUrl: imageToPost ?? null,
             status: "posted",
             tweetUrl: result.tweetUrl,
@@ -510,6 +524,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     setScheduleSuccess(false);
     setLinkPreviewImageUrl(null);
     setLinkPreviewVideoUrl(null);
+    setLinkPreviewSourceUrl(null);
     setCustomImageUrl(null);
     setSelectedImage("generated");
     currentHistoryId.current = null;
@@ -524,12 +539,14 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     lastPreviewedUrl.current = null;
     setLinkPreviewImageUrl(null);
     setLinkPreviewVideoUrl(null);
+    setLinkPreviewSourceUrl(null);
     setSelectedImage((prev) =>
       prev === "link" || prev === "link-video" ? "generated" : prev as "generated" | "custom" | "none"
     );
   };
 
   const triggerLinkPreview = async (url: string) => {
+    setLinkPreviewSourceUrl(url);
     setIsFetchingLinkPreview(true);
     const res = await fetchLinkPreview(url);
     if (!("error" in res)) {
