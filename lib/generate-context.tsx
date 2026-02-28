@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useRef, type ReactNode } from "react";
+import { createContext, useContext, useState, useRef, useEffect, type ReactNode } from "react";
 import { generateText } from "@/app/actions/generate-text";
 import { generateImage } from "@/app/actions/generate-image";
 import { postTweet } from "@/app/actions/post-tweet";
@@ -80,6 +80,47 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   const [customImageUrl, setCustomImageUrl] = useState<string | null>(null);
   const [noveltyMode, setNoveltyMode] = useState(false);
   const currentHistoryId = useRef<string | null>(null);
+
+  // ── Session persistence ──────────────────────────────────────────────────
+  const SESSION_KEY = "xposter_generate_draft";
+
+  // Restore from sessionStorage on mount (survives tab switches / reload)
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (s.generatedText) { setGeneratedText(s.generatedText); setEditedText(s.editedText ?? s.generatedText); }
+      if (s.imageUrls) setImageUrls(s.imageUrls);
+      if (s.imageErrors) setImageErrors(s.imageErrors);
+      if (typeof s.selectedImageIndex === "number") setSelectedImageIndex(s.selectedImageIndex);
+      if (s.lastPrompt) setLastPrompt(s.lastPrompt);
+      if (s.lastImagePrompts) setLastImagePrompts(s.lastImagePrompts);
+      if (s.whyItWorks) setWhyItWorks(s.whyItWorks);
+      if (s.selectedImage) setSelectedImage(s.selectedImage);
+      if (s.customImageUrl) setCustomImageUrl(s.customImageUrl);
+      if (s.linkPreviewImageUrl) setLinkPreviewImageUrl(s.linkPreviewImageUrl);
+      if (typeof s.noveltyMode === "boolean") setNoveltyMode(s.noveltyMode);
+      if (s.postSuccess) setPostSuccess(s.postSuccess);
+      if (s.scheduleSuccess) setScheduleSuccess(s.scheduleSuccess);
+      if (s.historyId) currentHistoryId.current = s.historyId;
+    } catch {}
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Save result state to sessionStorage whenever it changes
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+        generatedText, editedText, imageUrls, imageErrors,
+        selectedImageIndex, lastPrompt, lastImagePrompts, whyItWorks,
+        selectedImage, customImageUrl, linkPreviewImageUrl, noveltyMode,
+        postSuccess, scheduleSuccess,
+        historyId: currentHistoryId.current,
+      }));
+    } catch {}
+  }, [generatedText, editedText, imageUrls, imageErrors, selectedImageIndex,
+      lastPrompt, lastImagePrompts, whyItWorks, selectedImage, customImageUrl,
+      linkPreviewImageUrl, noveltyMode, postSuccess, scheduleSuccess]);
 
   const prefill = ({ prompt, text, imageUrls: urls, imagePrompt }: { prompt?: string; text?: string; imageUrls?: [string | null, string | null, string | null]; imagePrompt?: string }) => {
     if (prompt) setLastPrompt(prompt);
@@ -272,6 +313,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     setCustomImageUrl(null);
     setSelectedImage("generated");
     currentHistoryId.current = null;
+    try { sessionStorage.removeItem(SESSION_KEY); } catch {}
   };
 
   const clearLinkPreview = () => {
