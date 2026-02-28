@@ -6,7 +6,7 @@ import { Sparkles, History, Settings } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 
 const NAV_ITEMS = [
-  { href: "/generate", label: "Generate", icon: Sparkles },
+  { href: "/generate", label: "X Generate", icon: Sparkles },
   { href: "/history", label: "History", icon: History },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

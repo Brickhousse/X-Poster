@@ -175,7 +175,7 @@ export default function GeneratePage() {
     <div className="grid grid-cols-1 gap-6 items-start max-w-5xl md:grid-cols-2 md:gap-8">
       {/* LEFT COLUMN */}
       <div className="min-w-0">
-        <h1 className="mb-6 text-xl font-semibold text-slate-100">Generate</h1>
+        <h1 className="mb-6 text-xl font-semibold text-slate-100">X Generate</h1>
 
         <form onSubmit={handleSubmit((v) => onSubmit(v, false))} className="space-y-4">
           <div className="space-y-1">
