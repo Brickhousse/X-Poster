@@ -614,7 +614,7 @@ export default function GeneratePage() {
                 <button
                   type="button"
                   onClick={handleApproveAndPost}
-                  disabled={isPosting || !!postSuccess}
+                  disabled={isPosting}
                   className="flex items-center gap-2 rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-white focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isPosting && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -634,7 +634,7 @@ export default function GeneratePage() {
             </div>
 
             {/* Schedule toggle */}
-            {!postSuccess && !scheduleSuccess && (
+            {!scheduleSuccess && (
               <div className="space-y-2">
                 <Tooltip text="Schedule this post to go live at a specific time" align="start">
                   <button

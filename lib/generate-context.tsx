@@ -251,6 +251,9 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   }, [editedText]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const prefill = ({ prompt, text, imageUrls: urls, imagePrompt }: { prompt?: string; text?: string; imageUrls?: string[]; imagePrompt?: string }) => {
+    setPostSuccess(null);
+    setPostError(null);
+    setScheduleSuccess(false);
     if (prompt) setLastPrompt(prompt);
     if (text) {
       setGeneratedText(text);
