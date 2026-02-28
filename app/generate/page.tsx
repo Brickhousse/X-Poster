@@ -195,7 +195,7 @@ export default function GeneratePage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Tooltip text="Generate your post text and 3 images at once">
+            <Tooltip text="Generate your post text and 3 images at once" align="start">
               <button
                 type="submit"
                 disabled={isGenerating}
@@ -205,7 +205,7 @@ export default function GeneratePage() {
                 {isGenerating && !textFirstMode ? "Generating…" : "Generate All"}
               </button>
             </Tooltip>
-            <Tooltip text="Generate only the post text first — Generate images once text looks good!">
+            <Tooltip text="Generate only the post text first — Generate images once text looks good!" align="start">
               <button
                 type="button"
                 onClick={handleSubmit((v) => onSubmit(v, true))}
@@ -217,7 +217,7 @@ export default function GeneratePage() {
               </button>
             </Tooltip>
             {(editedText || anyImageUrl || textError || imagePool.some((e) => e.error !== null)) && (
-              <Tooltip text="Clear everything and start fresh">
+              <Tooltip text="Clear everything and start fresh" align="start">
                 <button
                   type="button"
                   onClick={handleDiscard}
@@ -229,7 +229,7 @@ export default function GeneratePage() {
               </Tooltip>
             )}
             <div className="ml-2">
-              <Tooltip text="Avoid repeating post topics that are in your history when generating this post">
+              <Tooltip text="Avoid repeating post topics that are in your history when generating this post" align="start">
                 <button
                   type="button"
                   onClick={() => setNoveltyMode(!noveltyMode)}
@@ -249,7 +249,7 @@ export default function GeneratePage() {
 
         {/* Prompt Override active badge */}
         {hasPromptOverride && (
-          <Tooltip text="Your custom prompt is applied. Click here to review it." position="bottom">
+          <Tooltip text="Your custom prompt is applied. Click here to review it." position="bottom" align="start">
             <a
               href="/settings?tab=prompt-override"
               className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-violet-500/40 bg-violet-500/10 px-3 py-1 text-xs font-medium text-violet-400 hover:bg-violet-500/20 transition-colors"
@@ -301,7 +301,7 @@ export default function GeneratePage() {
         {/* Generate images — Text-first mode only */}
         {textFirstMode && generatedText !== null && imagePool.length === 0 && !isGenerating && (
           <div className="mt-4">
-            <Tooltip text="Create 3 image options for your post">
+            <Tooltip text="Create 3 image options for your post" align="start">
               <button
                 type="button"
                 onClick={handleGenerateImages}
@@ -604,7 +604,7 @@ export default function GeneratePage() {
         {showActions && (
           <div className="mt-4 space-y-3">
             <div className="flex items-center gap-3">
-              <Tooltip text="Post directly to your X account right now">
+              <Tooltip text="Post directly to your X account right now" align="end">
                 <button
                   type="button"
                   onClick={handleApproveAndPost}
@@ -615,7 +615,7 @@ export default function GeneratePage() {
                   {isPosting ? "Posting…" : "Approve & Post"}
                 </button>
               </Tooltip>
-              <Tooltip text="Discard this post and return to a blank slate">
+              <Tooltip text="Discard this post and return to a blank slate" align="end">
                 <button
                   type="button"
                   onClick={handleDiscard}
@@ -630,7 +630,7 @@ export default function GeneratePage() {
             {/* Schedule toggle */}
             {!postSuccess && !scheduleSuccess && (
               <div className="space-y-2">
-                <Tooltip text="Schedule this post to go live at a specific time">
+                <Tooltip text="Schedule this post to go live at a specific time" align="start">
                   <button
                     type="button"
                     onClick={() => setShowSchedule((v) => !v)}
@@ -648,7 +648,7 @@ export default function GeneratePage() {
                       min={new Date().toISOString().slice(0, 16)}
                       className="rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
                     />
-                    <Tooltip text="Save the scheduled time and queue the post">
+                    <Tooltip text="Save the scheduled time and queue the post" align="end">
                       <button
                         type="button"
                         onClick={() => { handleSchedule(scheduledFor); setShowSchedule(false); setScheduledFor(""); }}
