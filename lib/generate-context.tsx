@@ -108,7 +108,8 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     getSettings().then((s) => {
       if (s.promptOverride) setPromptOverride(s.promptOverride);
     });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const hasPromptOverride = isNonDefaultOverride(promptOverride);
 
@@ -152,7 +153,8 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
       if (s.scheduleSuccess) setScheduleSuccess(s.scheduleSuccess);
       if (s.historyId) currentHistoryId.current = s.historyId;
     } catch {}
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Save result state to sessionStorage whenever it changes
   useEffect(() => {

@@ -63,8 +63,8 @@ export default function SettingsPage() {
   const [niche, setNiche] = useState("");
   const [avoid, setAvoid] = useState("");
   const [allowFaces, setAllowFaces] = useState(false);
-  const [imgNames, setImgNames] = useState(["", "", ""]);
-  const [imgDescs, setImgDescs] = useState([
+  const [imgNames, setImgNames] = useState<string[]>(["", "", ""]);
+  const [imgDescs, setImgDescs] = useState<string[]>([
     DEFAULT_IMAGE_DESCRIPTIONS[0],
     DEFAULT_IMAGE_DESCRIPTIONS[1],
     DEFAULT_IMAGE_DESCRIPTIONS[2],

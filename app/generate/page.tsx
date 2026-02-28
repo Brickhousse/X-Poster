@@ -324,6 +324,7 @@ export default function GeneratePage() {
                         <span className="text-xs text-red-400 text-center px-1">Failed</span>
                       </div>
                     ) : entry.url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={entry.url}
                         alt={SHORT_STYLE_LABELS[entry.style]}
@@ -360,6 +361,7 @@ export default function GeneratePage() {
                   {isFetchingLinkPreview && !linkPreviewImageUrl ? (
                     <div className="h-24 w-full animate-pulse rounded bg-slate-800" />
                   ) : linkPreviewImageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={linkPreviewImageUrl} alt="Link preview" className="h-24 w-full rounded object-cover" onError={clearLinkPreview} />
                   ) : (
                     <div className="h-24 w-full rounded bg-slate-800" />
@@ -430,7 +432,8 @@ export default function GeneratePage() {
                         : "border-slate-700 hover:border-slate-500"
                     }`}
                   >
-                    <img src={customImageUrl} alt="Custom" className="h-20 w-full rounded object-cover" />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={customImageUrl} alt="Custom" className="h-20 w-full rounded object-cover" />
                     <div className="mt-1 flex items-center justify-between px-0.5">
                       <p className="text-xs text-slate-400 leading-tight">Custom</p>
                       <button
@@ -507,6 +510,7 @@ export default function GeneratePage() {
                 className="block w-full overflow-hidden rounded-xl border border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500"
                 title="Click to expand"
               >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={linkPreviewImageUrl} alt="Link preview image" className="w-full object-cover" />
               </button>
             ) : selectedImage === "link-video" && linkPreviewVideoUrl ? (
@@ -531,6 +535,7 @@ export default function GeneratePage() {
                 className="block w-full overflow-hidden rounded-xl border border-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500"
                 title="Click to expand"
               >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={activeImageUrl} alt="Post image" className="w-full object-cover" />
               </button>
             ) : null}
@@ -666,6 +671,7 @@ export default function GeneratePage() {
             >
               ✕
             </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={modalImageUrl}
               alt="Full size image"
