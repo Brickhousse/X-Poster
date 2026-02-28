@@ -64,15 +64,7 @@ function buildSystemPrompt(override?: PromptOverride | null): string {
     userPrefsPart || brandVoicePart ? `${userPrefsPart}${brandVoicePart}` : "";
 
   const xVideoSearchPart = override?.xVideoSearch === true
-    ? `X VIDEO SEARCH DIRECTIVE
-Use your web_search tool to find one recent, relevant video post on X (Twitter) about the user's topic. Requirements:
-- Native X video only (uploaded directly to X — not a YouTube or external link).
-- Genuinely relevant to the topic and recent (within the past year, last 6 months preferred).
-- Construct the URL in this exact format: https://x.com/{username}/status/{tweet_id}/video/1
-- Embed this URL naturally in the X Post body after a relevant sentence. Do NOT place it after hashtags.
-- This URL counts as one of the allowed 1–2 inline URLs per the existing rules.
-- If you cannot find a real, relevant X video post that meets all criteria, omit the URL entirely. Never fabricate or guess a URL.
-
+    ? `- **X VIDEO SEARCH (REQUIRED)**: Use your web_search tool to find one recent, relevant video about the user's topic — preferably a native X/Twitter video post, but a YouTube video shared widely on X is also acceptable. You MUST include its clean URL inline in the X Post body (after a relevant sentence, before the hashtags). Do NOT add the /video/1 suffix. Only omit if absolutely no relevant video exists anywhere on the web.
 `
     : "";
 
@@ -94,7 +86,7 @@ RULES FOR THE X POST
 - Use 1–3 relevant emojis sparingly and naturally — never clustered at the end.
 - End with a strong, insightful closing statement. No CTAs, questions, "tag/save/repost" or similar.
 - **Hashtags are ALWAYS the very last line** — nothing comes after them. Format: 2–3 specific, searchable hashtags on a single line.
-
+${xVideoSearchPart}
 STRUCTURE & FORMATTING (non-negotiable)
 - The hook (first line) ALWAYS stands alone — blank line immediately after it, before the next sentence.
 - Separate each distinct paragraph or thought with a blank line. Maximum 3 sentences per block.
@@ -113,7 +105,7 @@ ADDITIONAL GUARDRAILS
 - Never add "as an AI" or disclaimers.
 - Always sound like a thoughtful human expert wrote it in 30 seconds.
 
-${xVideoSearchPart}${userBlock}EXAMPLE (reference only)
+${userBlock}EXAMPLE (reference only)
 
 User: "Benefits of cold plunges for entrepreneurs"
 
@@ -280,13 +272,18 @@ export async function generateText(
     const raw = messageOutput?.content?.find((c) => c.type === "output_text")?.text?.trim();
     if (!raw) return { error: "Grok returned an empty response." };
 
-    const xPostMatch = raw.match(/\*\*X Post\*\*\s*([\s\S]*?)(?=\*\*Image Prompt 1)/i);
-    const imagePrompt1Match = raw.match(/\*\*Image Prompt 1[^*]*\*\*\s*([\s\S]*?)(?=\*\*Image Prompt 2)/i);
-    const imagePrompt2Match = raw.match(/\*\*Image Prompt 2[^*]*\*\*\s*([\s\S]*?)(?=\*\*Image Prompt 3)/i);
-    const imagePrompt3Match = raw.match(/\*\*Image Prompt 3[^*]*\*\*\s*([\s\S]*?)(?=\*\*Why it works\*\*)/i);
-    const whyItWorksMatch = raw.match(/\*\*Why it works\*\*\s*([\s\S]*?)$/i);
+    // Strip [[n]](url) citation annotations injected by web_search tool
+    const cleaned = raw
+      .replace(/\[\[\d+\]\]\([^)]*\)/g, "")
+      .replace(/[ \t]+$/gm, "");
 
-    const text = xPostMatch?.[1]?.trim() ?? raw;
+    const xPostMatch = cleaned.match(/\*\*X Post\*\*\s*([\s\S]*?)(?=\*\*Image Prompt 1)/i);
+    const imagePrompt1Match = cleaned.match(/\*\*Image Prompt 1[^*]*\*\*\s*([\s\S]*?)(?=\*\*Image Prompt 2)/i);
+    const imagePrompt2Match = cleaned.match(/\*\*Image Prompt 2[^*]*\*\*\s*([\s\S]*?)(?=\*\*Image Prompt 3)/i);
+    const imagePrompt3Match = cleaned.match(/\*\*Image Prompt 3[^*]*\*\*\s*([\s\S]*?)(?=\*\*Why it works\*\*)/i);
+    const whyItWorksMatch = cleaned.match(/\*\*Why it works\*\*\s*([\s\S]*?)$/i);
+
+    const text = xPostMatch?.[1]?.trim() ?? cleaned;
     const prompt1 = imagePrompt1Match?.[1]?.trim() ?? text;
     const prompt2 = imagePrompt2Match?.[1]?.trim() ?? text;
     const prompt3 = imagePrompt3Match?.[1]?.trim() ?? text;
