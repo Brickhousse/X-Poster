@@ -35,6 +35,8 @@ function isOverdue(item: HistoryItem): boolean {
   );
 }
 
+const isXEmbedUrl = (url: string) => url.startsWith("https://platform.twitter.com/embed/");
+
 export default function HistoryPage() {
   const router = useRouter();
   const { setPromptOverride } = useGenerate();
@@ -192,12 +194,18 @@ export default function HistoryPage() {
                 >
                   {/* Thumbnail */}
                   {item.imageUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={item.imageUrl}
-                      alt=""
-                      className="h-14 w-14 shrink-0 rounded object-cover"
-                    />
+                    isXEmbedUrl(item.imageUrl) ? (
+                      <div className="h-14 w-14 shrink-0 rounded bg-slate-800 flex items-center justify-center">
+                        <span className="text-lg font-bold text-slate-300">𝕏</span>
+                      </div>
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.imageUrl}
+                        alt=""
+                        className="h-14 w-14 shrink-0 rounded object-cover"
+                      />
+                    )
                   )}
 
                   {/* Content */}
@@ -342,15 +350,25 @@ export default function HistoryPage() {
                   </p>
                 </div>
 
-                {/* Image */}
+                {/* Image / Video */}
                 {selectedItem.imageUrl && (
                   <div className="mt-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={selectedItem.imageUrl}
-                      alt="Post image"
-                      className="w-full rounded-xl object-cover"
-                    />
+                    {isXEmbedUrl(selectedItem.imageUrl) ? (
+                      <iframe
+                        src={selectedItem.imageUrl}
+                        className="w-full rounded-xl"
+                        style={{ minHeight: "280px" }}
+                        allow="autoplay; encrypted-media"
+                        allowFullScreen
+                      />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={selectedItem.imageUrl}
+                        alt="Post image"
+                        className="w-full rounded-xl object-cover"
+                      />
+                    )}
                   </div>
                 )}
 
