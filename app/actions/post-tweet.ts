@@ -81,20 +81,28 @@ export async function postTweet(text: string, imageUrl?: string): Promise<PostRe
       return { id: data.id, tweetUrl };
     }
 
-    // X embed selected: X videos can't be uploaded as media, but including the
-    // canonical x.com URL in the tweet text causes X to render a native video card.
-    let finalText = parsed.data.text;
+    // X embed selected: use quote_tweet_id to create a proper quote tweet with
+    // embedded video card. X videos cannot be uploaded as media files.
     if (parsed.data.imageUrl?.startsWith("https://platform.twitter.com/embed/")) {
       const idMatch = parsed.data.imageUrl.match(/[?&]id=(\d+)/);
       if (idMatch) {
-        const xUrl = `https://x.com/i/status/${idMatch[1]}`;
-        if (!finalText.includes(`/status/${idMatch[1]}`)) {
-          finalText = `${finalText}\n\n${xUrl}`;
+        const tweetId = idMatch[1];
+        // If the source URL is already in the text (e.g. Grok included it), post as-is
+        // so X natively cards it — no need to also quote-tweet.
+        if (parsed.data.text.includes(`/status/${tweetId}`)) {
+          const { data } = await client.v2.tweet(parsed.data.text);
+          return { id: data.id, tweetUrl: `https://x.com/i/web/status/${data.id}` };
         }
+        // Otherwise quote-tweet the original so the video card appears.
+        const { data } = await client.v2.tweet({
+          text: parsed.data.text,
+          quote_tweet_id: tweetId,
+        });
+        return { id: data.id, tweetUrl: `https://x.com/i/web/status/${data.id}` };
       }
     }
 
-    const { data } = await client.v2.tweet(finalText);
+    const { data } = await client.v2.tweet(parsed.data.text);
     const tweetUrl = `https://x.com/i/web/status/${data.id}`;
     return { id: data.id, tweetUrl };
   } catch (err) {
