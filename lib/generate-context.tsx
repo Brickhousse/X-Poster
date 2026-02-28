@@ -142,6 +142,11 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   };
 
   const onSubmit = async (values: GenerateFormValues) => {
+    // Capture before any state resets so novelty directive can exclude current draft
+    const inSessionDraft = noveltyMode && editedText
+      ? { text: editedText, prompt: lastPrompt || values.prompt }
+      : undefined;
+
     setGeneratedText(null);
     setTextError(null);
     setImageUrls([null, null, null]);
@@ -159,7 +164,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
     setLastPrompt(values.prompt);
     setIsGenerating(true);
     try {
-      const textResult = await generateText(values.prompt, noveltyMode);
+      const textResult = await generateText(values.prompt, noveltyMode, inSessionDraft);
 
       let resolvedText: string | null = null;
       let imagePrompts: [string, string, string] = [values.prompt, values.prompt, values.prompt];

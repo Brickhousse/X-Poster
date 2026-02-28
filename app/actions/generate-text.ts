@@ -78,7 +78,11 @@ export type TextResult =
   | { text: string; imagePrompts: [string, string, string]; whyItWorks: string }
   | { error: string };
 
-export async function generateText(prompt: string, noveltyMode?: boolean): Promise<TextResult> {
+export async function generateText(
+  prompt: string,
+  noveltyMode?: boolean,
+  inSessionDraft?: { text: string; prompt: string },
+): Promise<TextResult> {
   const parsed = schema.safeParse({ prompt });
   if (!parsed.success) {
     return { error: "Invalid prompt." };
@@ -103,6 +107,14 @@ export async function generateText(prompt: string, noveltyMode?: boolean): Promi
   let userMessage = parsed.data.prompt;
 
   if (noveltyMode) {
+    const exclusions: { prompt: string | null; text: string | null }[] = [];
+
+    // Always include the current in-session draft first (DB-independent)
+    if (inSessionDraft?.text) {
+      exclusions.push({ prompt: inSessionDraft.prompt, text: inSessionDraft.text });
+    }
+
+    // Then append DB history (last 15)
     const { data: recentRows } = await supabase
       .from("posts")
       .select("prompt, edited_text")
@@ -110,7 +122,7 @@ export async function generateText(prompt: string, noveltyMode?: boolean): Promi
       .order("created_at", { ascending: false })
       .limit(15);
 
-    const recentPosts = (recentRows ?? []).map((r) => {
+    const dbPosts = (recentRows ?? []).map((r) => {
       const row = r as Record<string, unknown>;
       return {
         prompt: row.prompt as string | null,
@@ -118,8 +130,10 @@ export async function generateText(prompt: string, noveltyMode?: boolean): Promi
       };
     }).filter((r) => r.prompt || r.text);
 
-    if (recentPosts.length > 0) {
-      const list = recentPosts.map((r) => {
+    exclusions.push(...dbPosts);
+
+    if (exclusions.length > 0) {
+      const list = exclusions.map((r) => {
         const hook = r.text ? r.text.split("\n")[0].slice(0, 120) : null;
         return hook
           ? `- Topic: "${r.prompt}" → Hook: "${hook}"`
