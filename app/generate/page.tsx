@@ -52,7 +52,18 @@ export default function GeneratePage() {
     const prefilledImageUrl2 = params.get("imageUrl2");
     const prefilledImageUrl3 = params.get("imageUrl3");
     const hasStoredImages = !!(prefilledImageUrl1 || prefilledImageUrl2 || prefilledImageUrl3);
-    if (prefilledPrompt) setValue("prompt", prefilledPrompt);
+    if (prefilledPrompt) {
+      setValue("prompt", prefilledPrompt);
+    } else {
+      // Restore prompt from sessionStorage (persists across tab switches)
+      try {
+        const raw = sessionStorage.getItem("xposter_generate_draft");
+        if (raw) {
+          const s = JSON.parse(raw) as { lastPrompt?: string };
+          if (s.lastPrompt) setValue("prompt", s.lastPrompt);
+        }
+      } catch {}
+    }
     if (prefilledPrompt || prefilledText || hasStoredImages || prefilledImagePrompt) {
       prefill({
         prompt: prefilledPrompt ?? undefined,
