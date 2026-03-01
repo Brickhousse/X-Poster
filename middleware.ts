@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 
 const isProtectedRoute = createRouteMatcher([
   "/generate(.*)",
+  "/instagram(.*)",
   "/history(.*)",
   "/settings(.*)",
 ]);

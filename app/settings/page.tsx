@@ -7,6 +7,9 @@ import { removeGrokKey } from "@/app/actions/remove-grok-key";
 import { disconnectX } from "@/app/actions/disconnect-x";
 import { getSessionStatus } from "@/app/actions/get-session-status";
 import { generateXAuthUrl } from "@/app/actions/x-auth";
+import { generateInstagramAuthUrl } from "@/app/actions/instagram-auth";
+import { disconnectInstagram } from "@/app/actions/instagram-token";
+import { getInstagramStatus } from "@/app/actions/get-instagram-status";
 import { saveSettings } from "@/app/actions/save-settings";
 import { getSettings } from "@/app/actions/get-settings";
 import { useGenerate } from "@/lib/generate-context";
@@ -46,6 +49,11 @@ export default function SettingsPage() {
   const [xConnectError, setXConnectError] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
   const [xTier, setXTier] = useState<"free" | "premium">("free");
+  const [igConnected, setIgConnected] = useState(false);
+  const [igUsername, setIgUsername] = useState<string | undefined>(undefined);
+  const [igConnecting, setIgConnecting] = useState(false);
+  const [igConnectError, setIgConnectError] = useState<string | null>(null);
+  const [igDisconnecting, setIgDisconnecting] = useState(false);
 
   // ── Prompt Override tab state ──────────────────────────────────────────
   const [brandVoice, setBrandVoice] = useState("");
@@ -76,6 +84,10 @@ export default function SettingsPage() {
     getSessionStatus().then((status) => {
       setHasGrokKey(status.hasGrokKey);
       setXConnected(status.hasXToken);
+    });
+    getInstagramStatus().then((status) => {
+      setIgConnected(status.connected);
+      setIgUsername(status.username);
     });
     getSettings().then((s) => {
       setXTier(s.xTier);
@@ -171,6 +183,29 @@ export default function SettingsPage() {
     setXConnected(false);
     setDisconnecting(false);
     setXConnectError(null);
+  };
+
+  const handleConnectInstagram = async () => {
+    setIgConnectError(null);
+    setIgConnecting(true);
+    const callbackUrl = `${window.location.origin}/auth/instagram/callback`;
+    const result = await generateInstagramAuthUrl(callbackUrl);
+    if ("error" in result) {
+      setIgConnectError(result.error);
+      setIgConnecting(false);
+      return;
+    }
+    sessionStorage.setItem("ig_oauth_state", result.state);
+    window.location.href = result.url;
+  };
+
+  const handleDisconnectInstagram = async () => {
+    setIgDisconnecting(true);
+    await disconnectInstagram();
+    setIgConnected(false);
+    setIgUsername(undefined);
+    setIgDisconnecting(false);
+    setIgConnectError(null);
   };
 
   // ── Prompt Override handlers ───────────────────────────────────────────
@@ -473,6 +508,72 @@ export default function SettingsPage() {
             {xConnected && (
               <p className="text-xs text-slate-500">
                 Token includes <code className="text-slate-400">offline.access</code> — reconnect once to refresh scopes if posting fails.
+              </p>
+            )}
+          </section>
+
+          {/* Instagram Account */}
+          <section className="space-y-3 border-t border-slate-800 pt-8">
+            <h2 className="text-sm font-medium text-slate-300">Instagram Account</h2>
+
+            {/* Business/Creator account requirement notice */}
+            <div className="rounded-md border border-amber-800/40 bg-amber-900/10 px-3 py-2.5 text-xs text-amber-400 space-y-1">
+              <p className="font-medium">Business or Creator account required</p>
+              <p className="text-amber-500">
+                Instagram&apos;s API only allows direct publishing to{" "}
+                <strong className="text-amber-400">Business or Creator</strong> accounts — personal
+                accounts cannot post via API. If you haven&apos;t already,{" "}
+                <a
+                  href="https://help.instagram.com/502981923235522"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-amber-200"
+                >
+                  convert your account →
+                </a>
+              </p>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              This app uses a shared Meta Developer App to authenticate. Connect your Instagram
+              account via Facebook OAuth below.
+            </p>
+
+            {igConnected ? (
+              <div className="flex flex-wrap items-center gap-4">
+                <div>
+                  <span className="text-sm text-green-400">Connected</span>
+                  {igUsername && (
+                    <span className="ml-2 text-sm text-slate-400">@{igUsername}</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDisconnectInstagram}
+                  disabled={igDisconnecting}
+                  className="flex items-center gap-2 rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-400 hover:border-slate-500 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {igDisconnecting && <Loader2 className="h-3 w-3 animate-spin" />}
+                  Disconnect
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleConnectInstagram}
+                disabled={igConnecting}
+                className="flex items-center gap-2 rounded-md bg-gradient-to-r from-purple-600 to-pink-500 px-4 py-2 text-sm font-medium text-white hover:from-purple-500 hover:to-pink-400 focus:outline-none focus:ring-2 focus:ring-pink-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {igConnecting && <Loader2 className="h-4 w-4 animate-spin" />}
+                {igConnecting ? "Redirecting…" : "Connect Instagram"}
+              </button>
+            )}
+            {igConnectError && (
+              <p className="text-xs text-red-400">{igConnectError}</p>
+            )}
+            {igConnected && (
+              <p className="text-xs text-slate-500">
+                Token expires after 60 days. Reconnect before expiry to maintain posting access.
               </p>
             )}
           </section>
