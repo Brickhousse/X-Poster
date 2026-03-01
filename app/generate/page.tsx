@@ -77,10 +77,6 @@ export default function GeneratePage() {
         imageUrls: prefilledImageUrls,
         imagePrompt: prefilledImagePrompt ?? undefined,
       });
-      if (prefilledImagePrompt && !hasStoredImages) {
-        const prompts: [string, string, string] = [prefilledImagePrompt, prefilledImagePrompt, prefilledImagePrompt];
-        handleRegenerateImage(prompts);
-      }
     }
 
     getSessionStatus().then((status) => {
