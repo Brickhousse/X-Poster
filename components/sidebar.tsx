@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, History, Settings, Camera } from "lucide-react";
+import { Sparkles, History, Settings } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 
 const NAV_ITEMS = [
   { href: "/generate", label: "X Generate", icon: Sparkles },
-  { href: "/instagram", label: "IG Generate", icon: Camera },
   { href: "/history", label: "History", icon: History },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

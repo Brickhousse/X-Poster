@@ -3,7 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseClient } from "@/lib/supabase";
 import { uploadImageFromUrl, deleteStorageImages } from "@/lib/image-storage";
-import type { HistoryItem, HistoryItemPlatform } from "@/lib/history-schema";
+import type { HistoryItem } from "@/lib/history-schema";
 
 type AddInput = Omit<HistoryItem, "id"> & { allImageUrls?: string[] };
 type AddResult = { id: string; storageUrls: string[] } | { error: string };
@@ -26,7 +26,6 @@ function dbRowToHistoryItem(row: Record<string, unknown>): HistoryItem {
     scheduledFor: (row.scheduled_for as string | null) ?? undefined,
     pinned: (row.pinned as boolean | null) ?? false,
     promptOverride: (row.prompt_override as import("@/lib/prompt-override-schema").PromptOverride | null) ?? undefined,
-    platform: ((row.platform as string | null) ?? "x") as HistoryItemPlatform,
   };
 }
 
@@ -72,7 +71,6 @@ export async function addHistoryItem(item: AddInput): Promise<AddResult> {
       scheduled_for: item.scheduledFor ?? null,
       created_at: item.createdAt,
       prompt_override: promptOverrideSnapshot,
-      platform: item.platform ?? "x",
     })
     .select("id")
     .single();
@@ -227,29 +225,17 @@ export async function deleteHistoryItem(id: string): Promise<MutateResult> {
   return { ok: true };
 }
 
-export async function getHistory(
-  platform?: HistoryItemPlatform
-): Promise<HistoryItem[]> {
+export async function getHistory(): Promise<HistoryItem[]> {
   const { userId } = await auth();
   if (!userId) return [];
 
   const supabase = getSupabaseClient();
-  let query = supabase
+  const { data, error } = await supabase
     .from("posts")
     .select("*")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
-  if (platform) {
-    if (platform === "x") {
-      // Include legacy rows where platform is null (they are X posts)
-      query = query.or(`platform.eq.x,platform.is.null`);
-    } else {
-      query = query.eq("platform", platform);
-    }
-  }
-
-  const { data, error } = await query;
   if (error || !data) return [];
   return data.map((row) => dbRowToHistoryItem(row as Record<string, unknown>));
 }

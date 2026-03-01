@@ -10,7 +10,7 @@ import { getHistory, deleteHistoryItem, updateHistoryItem } from "@/app/actions/
 import { saveSettings } from "@/app/actions/save-settings";
 import { postTweet } from "@/app/actions/post-tweet";
 import { useGenerate } from "@/lib/generate-context";
-import type { HistoryItem, HistoryItemStatus, HistoryItemPlatform } from "@/lib/history-schema";
+import type { HistoryItem, HistoryItemStatus } from "@/lib/history-schema";
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -37,59 +37,51 @@ function isOverdue(item: HistoryItem): boolean {
 
 const isXEmbedUrl = (url: string) => url.startsWith("https://platform.twitter.com/embed/");
 
-type PlatformFilter = "all" | HistoryItemPlatform;
-
 export default function HistoryPage() {
   const router = useRouter();
   const { setPromptOverride } = useGenerate();
-  const [allItems, setAllItems] = useState<HistoryItem[]>([]);
+  const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<"history" | "favorites">("history");
-  const [platformFilter, setPlatformFilter] = useState<PlatformFilter>("all");
   const [togglingPin, setTogglingPin] = useState<string | null>(null);
   const [postingId, setPostingId] = useState<string | null>(null);
   const [postErrors, setPostErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     getHistory().then((data) => {
-      setAllItems(data);
+      setItems(data);
       setLoading(false);
     });
   }, []);
 
-  const items =
-    platformFilter === "all"
-      ? allItems
-      : allItems.filter((i) => (i.platform ?? "x") === platformFilter);
-
   const pinnedItems = items.filter((i) => i.pinned);
   const visibleItems = tab === "favorites" ? pinnedItems : items;
-  const selectedItem = allItems.find((i) => i.id === selectedId) ?? null;
+  const selectedItem = items.find((i) => i.id === selectedId) ?? null;
 
-  // Clear selection when switching tabs/filter if the selected item isn't visible
+  // Clear selection when switching tabs if the selected item isn't in the new tab's list
   useEffect(() => {
     if (selectedId && !visibleItems.find((i) => i.id === selectedId)) {
       setSelectedId(null);
     }
-  }, [tab, platformFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleTogglePin = async (item: HistoryItem) => {
     setTogglingPin(item.id);
     const newPinned = !item.pinned;
     // Optimistic update
-    setAllItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, pinned: newPinned } : i)));
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, pinned: newPinned } : i)));
     const result = await updateHistoryItem(item.id, { pinned: newPinned });
     if ("error" in result) {
       // Revert on failure
-      setAllItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, pinned: item.pinned } : i)));
+      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, pinned: item.pinned } : i)));
     }
     setTogglingPin(null);
   };
 
   const handleDelete = async (id: string) => {
     await deleteHistoryItem(id);
-    setAllItems((prev) => prev.filter((i) => i.id !== id));
+    setItems((prev) => prev.filter((i) => i.id !== id));
     if (selectedId === id) setSelectedId(null);
   };
 
@@ -106,8 +98,7 @@ export default function HistoryPage() {
     // Pass all stored image URLs; fall back to single imageUrl for legacy rows
     const urls = item.imageUrls ?? (item.imageUrl ? [item.imageUrl] : []);
     urls.forEach((u, i) => { if (u) params.set(`imageUrl${i + 1}`, u); });
-    const platform = item.platform ?? "x";
-    router.push(`/${platform === "instagram" ? "instagram" : "generate"}?${params.toString()}`);
+    router.push(`/generate?${params.toString()}`);
   };
 
   const handlePostNow = async (item: HistoryItem) => {
@@ -123,7 +114,7 @@ export default function HistoryPage() {
         tweetUrl: result.tweetUrl,
         postedAt: new Date().toISOString(),
       });
-      setAllItems((prev) =>
+      setItems((prev) =>
         prev.map((i) =>
           i.id === item.id ? { ...i, status: "posted", tweetUrl: result.tweetUrl } : i
         )
@@ -182,26 +173,6 @@ export default function HistoryPage() {
             </button>
           </div>
 
-          {/* Platform filter pills */}
-          <div className="mb-3 flex items-center gap-1.5">
-            {(["all", "x", "instagram"] as PlatformFilter[]).map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setPlatformFilter(p)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors focus:outline-none ${
-                  platformFilter === p
-                    ? p === "instagram"
-                      ? "bg-pink-600/20 text-pink-400 border border-pink-600/40"
-                      : "bg-slate-700 text-slate-100 border border-slate-600"
-                    : "text-slate-500 border border-slate-800 hover:text-slate-300 hover:border-slate-700"
-                }`}
-              >
-                {p === "all" ? "All" : p === "x" ? "𝕏" : "Instagram"}
-              </button>
-            ))}
-          </div>
-
           {/* List */}
           {visibleItems.length === 0 ? (
             <p className="py-4 text-sm text-slate-500">
@@ -241,17 +212,12 @@ export default function HistoryPage() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm text-slate-100">{item.editedText}</p>
                     <p className="mt-0.5 truncate text-xs text-slate-500">{item.prompt}</p>
-                    <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                    <div className="mt-1.5 flex items-center gap-2">
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[item.status]}`}
                       >
                         {item.status}
                       </span>
-                      {(item.platform ?? "x") === "instagram" && (
-                        <span className="rounded-full bg-pink-900/40 px-2 py-0.5 text-xs font-medium text-pink-400">
-                          Instagram
-                        </span>
-                      )}
                       <span className="text-xs text-slate-500">{formatDate(item.createdAt)}</span>
                     </div>
                   </div>
@@ -331,7 +297,7 @@ export default function HistoryPage() {
                     className="flex items-center gap-1.5 rounded-md border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-300 hover:border-slate-500 hover:text-slate-100"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
-                    {(selectedItem.platform ?? "x") === "instagram" ? "View on Instagram" : "View on X"}
+                    View on X
                   </a>
                 )}
 
@@ -415,14 +381,6 @@ export default function HistoryPage() {
                   >
                     {selectedItem.status}
                   </span>
-                  {(selectedItem.platform ?? "x") === "instagram" && (
-                    <>
-                      <span>•</span>
-                      <span className="rounded-full bg-pink-900/40 px-2 py-0.5 font-medium text-pink-400">
-                        Instagram
-                      </span>
-                    </>
-                  )}
                   <span>•</span>
                   <span>{formatDate(selectedItem.createdAt)}</span>
                 </div>
